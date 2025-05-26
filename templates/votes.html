@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Noto+Sans:wght@400;500;700;900&family=Public+Sans:wght@400;500;700;900" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+      html {
+          scroll-behavior: smooth;
+        }
+        body, input, button, select {
+          font-family: 'Public Sans', 'Noto Sans', sans-serif !important;
+          font-smooth: always;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+        /* Remove outline on buttons/inputs for better perf */
+        button, input, select {
+          outline: none;
+        }
+        /* Reduce box-shadow repaints */
+        .card, .member-donut-highlight-box {
+          will-change: box-shadow;
+        }
+        /* Use transform for GPU acceleration on cards */
+        .card {
+          transform: translateZ(0);
+        }
+        /* Optimize image rendering if any */
+        img {
+          image-rendering: auto;
+          max-width: 100%;
+          height: auto;
+        }
+        /* Reduce CSS selector complexity for perf */
+        .d-flex, .flex-column, .flex-row, .align-items-center, .align-items-start, .justify-content-center, .justify-content-start, .gap-2, .gap-3 {
+          will-change: auto;
+        }
+        /* Optimize transitions */
+        * {
+          transition: none !important;
+        }
+        /* Hide scrollbars for perf */
+        ::-webkit-scrollbar {
+          width: 8px;
+          background: #f0f0f0;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #e0e0e0;
+          border-radius: 4px;
+        }
+        .voting-header { background: #f2aa3c; color: white; padding: 2rem 0; text-align:center; }
+        .voting-header h1 { margin:0; font-size:2rem; }
+        .filter-bar { background:#f0f4f8; padding:1rem; margin-bottom:1rem; border-radius:0.25rem; }
+        .voting-table th { background:#e1e5ea; }
+        .vote-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        /* Clamp vote titles to 3 lines */
+        .vote-title {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .vote-meta {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .member-donut-highlight {
+          z-index: 2;
+          font-size: 0.85em;
+        }
+        .member-donut-highlight-box {
+          box-shadow: 0 0 0 2px #f2aa3c;
+          margin-bottom: 2px;
+          position: relative;
+        }
+        /* From Uiverse.io by Nawsome */
+        .loadingspinner {
+          --square: 26px;
+          --offset: 30px;
+          --duration: 2.4s;
+          --delay: 0.2s;
+          --timing-function: ease-in-out;
+          --in-duration: 0.4s;
+          --in-delay: 0.1s;
+          --in-timing-function: ease-out;
+          width: calc( 3 * var(--offset) + var(--square));
+          height: calc( 2 * var(--offset) + var(--square));
+          padding: 0px;
+          margin-left: auto;
+          margin-right: auto;
+          margin-top: 10px;
+          margin-bottom: 30px;
+          position: relative;
+        }
+        .loadingspinner div {
+          display: inline-block;
+          background: darkorange;
+          border: none;
+          border-radius: 2px;
+          width: var(--square);
+          height: var(--square);
+          position: absolute;
+          padding: 0px;
+          margin: 0px;
+          font-size: 6pt;
+          color: black;
+        }
+        .loadingspinner #square1 {
+          left: calc( 0 * var(--offset) );
+          top: calc( 0 * var(--offset) );
+          animation: square1 var(--duration) var(--delay) var(--timing-function) infinite,
+                 squarefadein var(--in-duration) calc(1 * var(--in-delay)) var(--in-timing-function) both;
+        }
+        .loadingspinner #square2 {
+          left: calc( 0 * var(--offset) );
+          top: calc( 1 * var(--offset) );
+          animation: square2 var(--duration) var(--delay) var(--timing-function) infinite,
+                squarefadein var(--in-duration) calc(1 * var(--in-delay)) var(--in-timing-function) both;
+        }
+        .loadingspinner #square3 {
+          left: calc( 1 * var(--offset) );
+          top: calc( 1 * var(--offset) );
+          animation: square3 var(--duration) var(--delay) var(--timing-function) infinite,
+                 squarefadein var(--in-duration) calc(2 * var(--in-delay)) var(--in-timing-function) both;
+        }
+        .loadingspinner #square4 {
+          left: calc( 2 * var(--offset) );
+          top: calc( 1 * var(--offset) );
+          animation: square4 var(--duration) var(--delay) var(--timing-function) infinite,
+                 squarefadein var(--in-duration) calc(3 * var(--in-delay)) var(--in-timing-function) both;
+        }
+        .loadingspinner #square5 {
+          left: calc( 3 * var(--offset) );
+          top: calc( 1 * var(--offset) );
+          animation: square5 var(--duration) var(--delay) var(--timing-function) infinite,
+                 squarefadein var(--in-duration) calc(4 * var(--in-delay)) var(--in-timing-function) both;
+        }
+        @keyframes square1 {
+          0% { left: calc( 0 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+          8.333% { left: calc( 0 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          100% { left: calc( 0 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+        }
+        @keyframes square2 {
+          0% { left: calc( 0 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          8.333% { left: calc( 0 * var(--offset) ); top: calc( 2 * var(--offset) ); }
+          16.67% { left: calc( 1 * var(--offset) ); top: calc( 2 * var(--offset) ); }
+          25.00% { left: calc( 1 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          83.33% { left: calc( 1 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          91.67% { left: calc( 1 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+          100% { left: calc( 0 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+        }
+        @keyframes square3 {
+          0%,100% { left: calc( 1 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          16.67% { left: calc( 1 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          25.00% { left: calc( 1 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+          33.33% { left: calc( 2 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+          41.67% { left: calc( 2 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          66.67% { left: calc( 2 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          75.00% { left: calc( 2 * var(--offset) ); top: calc( 2 * var(--offset) ); }
+          83.33% { left: calc( 1 * var(--offset) ); top: calc( 2 * var(--offset) ); }
+          91.67% { left: calc( 1 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+        }
+        @keyframes square4 {
+          0% { left: calc( 2 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          33.33% { left: calc( 2 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          41.67% { left: calc( 2 * var(--offset) ); top: calc( 2 * var(--offset) ); }
+          50.00% { left: calc( 3 * var(--offset) ); top: calc( 2 * var(--offset) ); }
+          58.33% { left: calc( 3 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          100% { left: calc( 3 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+        }
+        @keyframes square5 {
+          0% { left: calc( 3 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          50.00% { left: calc( 3 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          58.33% { left: calc( 3 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+          66.67% { left: calc( 2 * var(--offset) ); top: calc( 0 * var(--offset) ); }
+          75.00% { left: calc( 2 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+          100% { left: calc( 2 * var(--offset) ); top: calc( 1 * var(--offset) ); }
+        }
+        @keyframes squarefadein {
+          0% { transform: scale(0.75); opacity: 0.0; }
+          100% { transform: scale(1.0); opacity: 1.0; }
+        }
+    </style>
+</head>
+<body class="bg-[#fcfbf8] min-h-screen">
+    <!-- Ladeanimation -->
+    <div id="loader" class="loadingspinner" style="display:none;">
+      <div id="square1"></div>
+      <div id="square2"></div>
+      <div id="square3"></div>
+      <div id="square4"></div>
+      <div id="square5"></div>
+    </div>
+    <!-- Language switcher -->
+    <div class="text-end p-2">
+        <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
+        <a href="?lang=en&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
+    </div>
+    <div class="voting-header">
+        <div class="container flex flex-wrap items-center justify-between gap-2">
+            <h1 class="mb-0">{{ texts.votes_title }}</h1>
+            <form method="get" action="/votes/html" class="flex items-center gap-2">
+                <span class="text-lg font-medium">{{ texts.of }}</span>
+                <select id="member_id" name="member_id" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                    {% for member in members %}
+                    <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.last_name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="page" value="{{ page }}">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                {% if query %}<input type="hidden" name="query" value="{{ query }}">{% endif %}
+                {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
+            </form>
+        </div>
+    </div>
+    <main class="container my-4" id="main-content" style="opacity:1; transition: opacity 0.3s;">
+        <!-- Filterleiste -->
+        <div class="filter-bar">
+            <form class="row g-2 align-items-end" method="get" action="/votes/html">
+                <div class="col-md-4">
+                    <label for="query" class="form-label">{{ texts.keyword }}</label>
+                    <input type="text" id="query" name="query" class="form-control" placeholder="{{ texts.keyword_placeholder }}" value="{{ query }}">
+                </div>
+                <div class="col-md-3">
+                    <div class="mt-2">
+                      <div class="flex items-center gap-3 bg-white shadow rounded-lg px-4 py-3 border border-gray-200" style="min-width:150px;">
+                        <div class="flex items-center justify-center bg-[#f2aa3c] bg-opacity-90 rounded-full w-10 h-10">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2a4 4 0 004 4h1a4 4 0 004-4zM17 11V7a4 4 0 00-4-4H9a4 4 0 00-4 4v4a4 4 0 004 4h4a4 4 0 004-4z"/></svg>
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-xl font-semibold text-gray-900 leading-tight">{{ total_member_votes }}</span>
+                          <span class="text-xs text-gray-500">{{ texts.total_member_votes or 'Abgegebene Stimmen' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="date_range" class="form-label">Zeitraum</label>
+                    <div class="input-group">
+                        <input type="text" id="start_date" name="start_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                        <span class="input-group-text">bis</span>
+                        <input type="text" id="end_date" name="end_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-md-1 text-end">
+                    <button type="submit" class="btn btn-primary w-100">{{ texts.search }}</button>
+                </div>
+            </form>
+        </div>
+        {% if member_missing %}
+        <div class="alert alert-warning">
+            Der Abgeordnete {{ sel_member_name }} ist nicht mehr Mitglied des Parlaments.
+        </div>
+        {% endif %}
+        <!-- Ergebnisse-Tabelle -->
+        <div class="d-flex flex-nowrap overflow-auto pb-3">
+            {% if not votes %}
+            <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
+            {% else %}
+            {% for v in votes %}
+            <div class="flex-shrink-0 me-4">
+                <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted vote-meta mb-1">
+                            {{ v.timestamp }}
+                            {% if v.geo_areas %}
+                                {% for area in v.geo_areas %}
+                                    <a href="/votes/html?geo={{ area.code }}{% if query %}&query={{ query }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&member_id={{ selected_member_id }}&lang={{ lang }}{% if show_all %}&show_all=true{% endif %}"
+                                       class="badge bg-secondary text-decoration-none">{{ area.label }}</a>
+                                {% endfor %}
+                            {% endif %}
+                        </h6>
+                        <h5 class="card-title vote-title mb-3 text-wrap" style="white-space: normal; word-break: break-word;">
+                            <a href="/votes/detail/{{ v.id }}?lang={{ lang }}" class="text-decoration-none text-dark">{{ v.display_title }}</a>
+                        </h5>
+                        <div class="d-flex justify-content-between align-items-start w-100 mt-3">
+                            <!-- Großer Donut -->
+                            <div class="flex-shrink-0" style="width:50%;">
+                                <canvas id="chart-{{ loop.index0 }}" width="200" height="200" class="d-block mx-auto"
+                                        data-for="{{ v.chart_data.FOR }}"
+                                        data-against="{{ v.chart_data.AGAINST }}"
+                                        data-abstention="{{ v.chart_data.ABSTENTION }}"
+                                        data-novote="{{ v.chart_data.DID_NOT_VOTE }}"></canvas>
+                            </div>
+                            <!-- Kategorien mit Mini-Donuts und Meine Position Box -->
+                            <div class="d-flex flex-column justify-content-start gap-3" style="width:45%;">
+                                {% set labels = [texts.for_label, texts.against_label, texts.abstention_label, texts.did_not_vote_label] %}
+                                {% set colors = ['#4caf50', '#f44336', '#ff9800', '#9e9e9e'] %}
+                                {% set chart_data = [v.chart_data.FOR, v.chart_data.AGAINST, v.chart_data.ABSTENTION, v.chart_data.DID_NOT_VOTE] %}
+                                {% set pos_map = {'FOR': 0, 'AGAINST': 1, 'ABSTENTION': 2, 'DID_NOT_VOTE': 3} %}
+                                {% set user_pos = v.position %}
+                                <div class="d-flex flex-column justify-content-center align-items-start gap-2">
+                                  {% set pos_idx = pos_map.get(user_pos) %}
+                                  {% for i in range(4) %}
+                                    {% if i == pos_idx %}
+                                    <div class="d-flex flex-row align-items-center member-donut-highlight-box bg-warning bg-opacity-25 rounded px-2 py-1" style="min-height:60px; border: 2px solid #f2aa3c;">
+                                      <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
+                                        data-value="{{ chart_data[i] }}"
+                                        data-total="{{ chart_data|sum }}"
+                                        data-label="{{ labels[i] }}"
+                                        data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
+                                        style="width:40px; height:40px; max-width:40px; max-height:40px;"
+                                      ></canvas>
+                                      <div class="small ms-2 fw-bold text-warning position-label-box">
+                                        {{ texts['my_position'] }}: {{ labels[i] }}
+                                      </div>
+                                      <span class="visually-hidden">(Meine Position)</span>
+                                    </div>
+                                    {% else %}
+                                    <div class="d-flex flex-row align-items-center" style="min-height:60px;">
+                                      <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
+                                        data-value="{{ chart_data[i] }}"
+                                        data-total="{{ chart_data|sum }}"
+                                        data-label="{{ labels[i] }}"
+                                        data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
+                                        style="width:40px; height:40px; max-width:40px; max-height:40px;"
+                                      ></canvas>
+                                      <div class="small ms-2">{{ labels[i] }}</div>
+                                    </div>
+                                    {% endif %}
+                                  {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        <p class="mt-3 small text-muted">{{ v.description }}</p>
+                        <a href="{{ v.document_link }}" class="btn btn-sm" style="background-color:#f2aa3c; color:#000;">{{ texts.open_document }}</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        <!-- Anzeige der derzeit gezeigten und Gesamt-Votes -->
+        <div class="mt-3 text-center">
+            <p class="mb-1">{{ texts.shown_of.format(shown=shown_votes, total=total_votes) }}</p>
+        </div>
+        <!-- Toggle Alle/Seitenweise -->
+        <div class="mb-3 text-center">
+            {% if not show_all %}
+            <a href="?show_all=true&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">{{ texts.show_all }}</a>
+            {% else %}
+            <a href="?show_all=false&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-secondary">{{ texts.paginated }}</a>
+            {% endif %}
+        </div>
+        <!-- Pagination -->
+        <nav aria-label="{{ texts.page }}-Navigation">
+            <ul class="pagination justify-content-center">
+                {% set window = 2 %}
+                {% set first_page = 1 %}
+                {% set last_page = total_pages %}
+                {% set start_page = page - window if page - window > first_page else first_page %}
+                {% set end_page = page + window if page + window < last_page else last_page %}
+                <li class="page-item disabled"><span class="page-link">{{ texts.page }} {{ page }} / {{ total_pages }}</span></li>
+                {% if start_page > first_page %}
+                    <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{first_page}}</a></li>
+                    {% if start_page > first_page + 1 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endif %}
+                {% for i in range(start_page, end_page+1) %}
+                    <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{i}}</a></li>
+                {% endfor %}
+                {% if end_page < last_page %}
+                    {% if end_page < last_page - 1 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{last_page}}</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        <!-- Remove the global member-donut-box at the bottom -->
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script>
+    // Ladeanimation anzeigen, bis Seite fertig geladen
+    document.getElementById('loader').style.display = 'block';
+    document.getElementById('main-content').style.opacity = '0.3';
+    window.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('main-content').style.opacity = '1';
+    });
+    // Chart.js: Defer rendering for smoother UX
+    window.addEventListener('DOMContentLoaded', function() {
+      // Init Haupt-Charts mit Center-Text and ohne Legende
+      document.querySelectorAll('canvas[id^="chart-"]').forEach(function(c){
+          var f = +c.dataset.for;
+          var a = +c.dataset.against;
+          var ab = +c.dataset.abstention;
+          var nv = +c.dataset.novote;
+          var data = [f,a,ab,nv];
+          var labels = ["{{ texts.for_label }}", "{{ texts.against_label }}", "{{ texts.abstention_label }}", "{{ texts.did_not_vote_label }}"];
+          new Chart(c, {
+              type:'doughnut',
+              data:{ labels:labels, datasets:[{ data:data, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
+              options:{
+                  responsive:true,
+                  maintainAspectRatio:false,
+                  cutout:'60%',
+                  plugins:{ legend:{ display:false }, tooltip:{} }
+              },
+              plugins:[{
+                  id:'centerText',
+                  afterDraw:function(chart){
+                      var ctx = chart.ctx;
+                      var d = chart.data.datasets[0].data;
+                      var lbls = chart.data.labels;
+                      var maxIdx = d.indexOf(Math.max.apply(null,d));
+                      var text = lbls[maxIdx] + ': ' + d[maxIdx];
+                      ctx.save();
+                      ctx.textAlign='center';
+                      ctx.textBaseline='middle';
+                      ctx.font='bold 1.5em sans-serif';
+                      ctx.fillText(text, chart.width/2, chart.height/2);
+                      ctx.restore();
+                  }
+              }]
+          });
+      });
+      // Init Mini-Charts (rechts neben großem Donut)
+      document.querySelectorAll('canvas[id^="mini-donut-"]').forEach(function(c) {
+          var value = parseInt(c.dataset.value, 10);
+          var total = parseInt(c.dataset.total, 10);
+          var label = c.dataset.label;
+          var color = c.dataset.color;
+          new Chart(c, {
+              type: 'doughnut',
+              data: {
+                  labels: [label, ''],
+                  datasets: [{
+                      data: [value, Math.max(1, total-value)],
+                      backgroundColor: [color, '#eee'],
+                      borderWidth: 0
+                  }]
+              },
+              options: { cutout: '80%', plugins: { legend: { display: false } } }
+          });
+      });
+    });
+    flatpickr("#start_date", {
+        dateFormat: "d-m-Y",
+        allowInput: true,
+        locale: "de",
+        maxDate: document.getElementById('end_date').value || undefined,
+        onChange: function(selectedDates, dateStr, instance) {
+            // Set maxDate for end_date
+            endPicker.set('minDate', dateStr);
+        }
+    });
+    var endPicker = flatpickr("#end_date", {
+        dateFormat: "d-m-Y",
+        allowInput: true,
+        locale: "de",
+        minDate: document.getElementById('start_date').value || undefined,
+        maxDate: "25-05-2025",
+        onChange: function(selectedDates, dateStr, instance) {
+            // Set minDate for start_date
+            startPicker.set('maxDate', dateStr);
+        }
+    });
+    var startPicker = flatpickr.instances.find(i => i.input.id === 'start_date');
+    </script>
+</body>
+</html>

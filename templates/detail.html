@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ vote.display_title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chart-wrapper {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Language switcher -->
+    <div class="text-end p-2">
+        <a href="?lang=de" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
+        <a href="?lang=en" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
+    </div>
+    <div class="container my-4">
+        <h1 class="mb-3 text-center">{{ vote.display_title }}</h1>
+        <p class="text-muted text-center">{{ vote.description }}</p>
+        <!-- Per-faction vote distribution -->
+        <div class="row g-4 justify-content-center">
+            {% for faction, counts in faction_map.items() %}
+            <div class="col-6 col-md-3 text-center">
+                <h6 class="mb-2">{{ faction }}</h6>
+                <div class="chart-wrapper">
+                    <canvas id="faction-chart-{{ loop.index0 }}"
+                            data-for="{{ counts.FOR }}"
+                            data-against="{{ counts.AGAINST }}"
+                            data-abstention="{{ counts.ABSTENTION }}"
+                            data-novote="{{ counts.DID_NOT_VOTE }}"></canvas>
+                    <!-- Legend mit absoluten Stimmenzahlen -->
+                    <ul class="list-unstyled small mt-2 text-start">
+                        <li class="text-success">{{ texts.for_label }}: {{ counts.FOR }}</li>
+                        <li class="text-danger">{{ texts.against_label }}: {{ counts.AGAINST }}</li>
+                        <li class="text-info">{{ texts.abstention_label }}: {{ counts.ABSTENTION }}</li>
+                        <li class="text-secondary">{{ texts.did_not_vote_label }}: {{ counts.DID_NOT_VOTE }}</li>
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Back to list -->
+        <div class="text-center">
+            <a href="/votes/html?lang={{ lang }}" class="btn btn-secondary">&larr; {{ texts.paginated }}</a>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    // Per-faction donut charts
+    document.querySelectorAll('canvas[id^="faction-chart-"]').forEach(function(c){
+        var f = +c.dataset.for;
+        var a = +c.dataset.against;
+        var ab = +c.dataset.abstention;
+        var nv = +c.dataset.novote;
+        var data = [f, a, ab, nv];
+        var labels = ["{{ texts.for_label }}","{{ texts.against_label }}","{{ texts.abstention_label }}","{{ texts.did_not_vote_label }}"];
+        new Chart(c, {
+            type:'doughnut',
+            data:{ labels: labels, datasets:[{ data: data, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
+            options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ display:false } } }
+        });
+    });
+    </script>
+</body>
+</html>

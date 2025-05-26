@@ -1,0 +1,13 @@
+.vote-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+.vote-meta {
+    color: #666;
+    font-size: 0.9rem;
+}
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-top: 6px solid #7AB800;
+}
