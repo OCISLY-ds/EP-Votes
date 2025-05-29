@@ -1,0 +1,14 @@
+# Ignore vote_data.json and votes.db
+vote_data.json
+votes.db
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+
+# IDE settings
+.vscode/
+.idea/
