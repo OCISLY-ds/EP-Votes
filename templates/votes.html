@@ -57,8 +57,14 @@
           background: #e0e0e0;
           border-radius: 4px;
         }
-        .voting-header { background: #f2aa3c; color: white; padding: 2rem 0; text-align:center; }
+        .voting-header { background: #FFA600; color: white; padding: 2rem 0; text-align:center; }
         .voting-header h1 { margin:0; font-size:2rem; }
+        /* Constrain logo height to avoid overstretching header */
+        .voting-header img {
+          height: 6.5rem; /* 50% larger logo height */
+           width: auto;
+           object-fit: contain;
+        }
         .filter-bar { background:#f0f4f8; padding:1rem; margin-bottom:1rem; border-radius:0.25rem; }
         .voting-table th { background:#e1e5ea; }
         .vote-title {
@@ -211,7 +217,11 @@
     </div>
     <div class="voting-header">
         <div class="container flex flex-wrap items-center justify-between gap-2">
-            <h1 class="mb-0">{{ texts.votes_title }}</h1>
+            <!-- Logo and title -->
+            <div class="d-flex align-items-center">
+              <img src="/static/icon2.png" alt="Logo" class="me-3" />
+               <h1 class="mb-0">{{ texts.votes_title }}</h1>
+            </div>
             <form method="get" action="/votes/html" class="flex items-center gap-2">
                 <span class="text-lg font-medium">{{ texts.of }}</span>
                 <!-- Member select dropdown -->
@@ -231,13 +241,17 @@
             </form>
             {% if sel_member_info %}
             <div class="ms-auto">
-              <div class="card bg-white p-3 shadow-sm" style="min-width:220px;">
-                <h6 class="card-title mb-2">{{ sel_member_info.name }}</h6>
-                <p class="mb-1"><strong>Land:</strong> {{ sel_member_info.country }}</p>
-                <p class="mb-1"><strong>Fraktion:</strong> {{ sel_member_info.group }}</p>
-                {% if sel_member_info.age %}
-                <p class="mb-0"><strong>Alter:</strong> {{ sel_member_info.age }}</p>
+              <div class="card bg-white rounded shadow-sm p-3 d-flex flex-row align-items-center" style="min-width:220px;">
+                {% if sel_member_info.photo_url %}
+                <img src="https://howtheyvote.eu{{ sel_member_info.photo_url }}" alt="Foto von {{ sel_member_name }}" class="rounded-circle me-3" style="width:100px; height:100px; object-fit:cover; object-position:50% 30%;" />
                 {% endif %}
+                <div class="card-body p-0 text-start">
+                  <p class="mb-2"><strong>Land:</strong> {{ sel_member_info.country }}</p>
+                  <p class="mb-2"><strong>Fraktion:</strong> {{ sel_member_info.group }}</p>
+                  {% if sel_member_info.age %}
+                  <p class="mb-0"><strong>Alter:</strong> {{ sel_member_info.age }}</p>
+                  {% endif %}
+                </div>
               </div>
             </div>
             {% endif %}
@@ -251,9 +265,9 @@
                     <label for="query" class="form-label">{{ texts.keyword }}</label>
                     <input type="text" id="query" name="query" class="form-control" placeholder="{{ texts.keyword_placeholder }}" value="{{ query }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-auto">
                     <div class="mt-2">
-                      <div class="flex items-center gap-3 bg-white shadow rounded-lg px-4 py-3 border border-gray-200" style="min-width:150px;">
+                      <div class="flex items-center gap-3 bg-white shadow rounded-lg px-4 py-3 border border-gray-200" style="width:auto;">
                         <div class="flex items-center justify-center bg-[#f2aa3c] bg-opacity-90 rounded-full w-10 h-10">
                           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2a4 4 0 004 4h1a4 4 0 004-4zM17 11V7a4 4 0 00-4-4H9a4 4 0 00-4 4v4a4 4 0 004 4h4a4 4 0 004-4z"/></svg>
                         </div>
@@ -274,7 +288,7 @@
                 </div>
                 <!-- Geo-Filter Dropdown -->
                 <div class="col-md-2">
-                    <label for="geo" class="form-label">{{ texts.keyword }} Geo</label>
+                    <label for="geo" class="form-label">Länderfilter</label>
                     <select id="geo" name="geo" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="">{{ texts.show_all or 'Alle Bereiche' }}</option>
                         {% for opt in geo_options %}
@@ -337,7 +351,7 @@
                                   {% set pos_idx = pos_map.get(user_pos) %}
                                   {% for i in range(4) %}
                                     {% if i == pos_idx %}
-                                    <div class="d-flex flex-row align-items-center member-donut-highlight-box bg-warning bg-opacity-25 rounded px-2 py-1" style="min-height:60px; border: 2px solid #f2aa3c;">
+                                    <div class="d-flex flex-row align-items-center member-donut-highlight-box bg-warning bg-opacity-25 rounded px-2 py-1" style="border: 2px solid #f2aa3c;">
                                       <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
                                         data-value="{{ chart_data[i] }}"
                                         data-total="{{ chart_data|sum }}"
@@ -345,10 +359,10 @@
                                         data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
                                         style="width:40px; height:40px; max-width:40px; max-height:40px;"
                                       ></canvas>
-                                      <div class="small ms-2 fw-bold text-warning position-label-box">
-                                        {{ texts['my_position'] }}: {{ labels[i] }}
+                                      <div class="d-flex flex-column ms-2 align-items-start">
+                                        <div class="small fw-bold">{{ texts['my_position'] }}: {{ labels[i] }}</div>
+                                        <div class="small text-muted">{{ chart_data[i] }}</div>
                                       </div>
-                                      <span class="visually-hidden">(Meine Position)</span>
                                     </div>
                                     {% else %}
                                     <div class="d-flex flex-row align-items-center" style="min-height:60px;">
@@ -359,7 +373,10 @@
                                         data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
                                         style="width:40px; height:40px; max-width:40px; max-height:40px;"
                                       ></canvas>
-                                      <div class="small ms-2">{{ labels[i] }}</div>
+                                      <div class="d-flex flex-column ms-2 align-items-start">
+                                        <div class="small">{{ labels[i] }}</div>
+                                        <div class="small text-muted">{{ chart_data[i] }}</div>
+                                      </div>
                                     </div>
                                     {% endif %}
                                   {% endfor %}
@@ -408,7 +425,7 @@
                     {% if end_page < last_page - 1 %}
                         <li class="page-item disabled"><span class="page-link">…</span></li>
                     {% endif %}
-                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{last_page}}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_memberId}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{last_page}}</a></li>
                 {% endif %}
             </ul>
         </nav>
@@ -519,5 +536,10 @@
         });
       });
     </script>
+        </main>
+    <!-- Footer with license and API source -->
+    <footer class="text-center py-3 bg-light">
+      <small>API via <a href="https://github.com/HowTheyVote/howtheyvote" target="_blank" rel="noopener">HowTheyVote/howtheyvote</a> (AGPL-3.0)</small>
+    </footer>
 </body>
 </html>

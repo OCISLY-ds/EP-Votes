@@ -21,6 +21,10 @@ import datetime
 
 app = FastAPI()
 app.add_middleware(GZipMiddleware, minimum_size=500)
+# Serve static directory for assets (e.g., icon2.png)
+BASE_DIR = Path(__file__).parent  # Define BASE_DIR before mounting static files
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
 # Internationalization
 LANG_TEXTS = {
     'de': {
@@ -71,7 +75,6 @@ SessionLocal = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 # GLOBAL JSON-Daten laden, member_votes.json entfernen
-BASE_DIR = Path(__file__).parent
 with open(BASE_DIR / 'vote_data.json', encoding='utf-8') as f:
     VOTE_DATA_LIST = json.load(f)
 # member_votes.json wird nicht mehr benötigt
@@ -241,6 +244,17 @@ def get_votes_html(request: Request,
         sel_member_name = ""
     # Additional selected member info
     sel_member_info = MEPS_INFO.get(member_id, {})
+    # Add photo_url from vote_data if available
+    photo = None
+    for vote in VOTE_DATA_LIST:
+        for mv in vote.get('member_votes', []):
+            if int(mv.get('member', {}).get('id', 0)) == member_id:
+                photo = mv.get('member', {}).get('photo_url')
+                break
+        if photo:
+            break
+    if photo:
+        sel_member_info['photo_url'] = photo
 
     # Formatierte Votes mit Position für ausgewähltes Mitglied und Chart-Daten
     formatted_votes = []
