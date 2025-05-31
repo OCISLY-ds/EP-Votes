@@ -70,13 +70,12 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
 
-# JSON-Daten global laden, um I/O pro Request zu vermeiden
+# GLOBAL JSON-Daten laden, member_votes.json entfernen
 BASE_DIR = Path(__file__).parent
 with open(BASE_DIR / 'vote_data.json', encoding='utf-8') as f:
     VOTE_DATA_LIST = json.load(f)
-with open(BASE_DIR / 'member_votes.json', encoding='utf-8') as f:
-    MEMBER_VOTES_LIST = json.load(f)
-
+# member_votes.json wird nicht mehr benötigt
+MEMBER_VOTES_LIST: list = []
 # MEP-Liste laden mit einfachem Caching (1 Tag)
 cache_path = BASE_DIR / 'meps_cache.xml'
 if cache_path.exists() and time.time() - cache_path.stat().st_mtime < 86400:
@@ -87,22 +86,34 @@ else:
 
 root = ET.fromstring(xml_data)
 MEPS_IDS = { int(m.find('id').text) for m in root.findall('mep') }
+# Full list of MEPs for dropdown (id and full name)
+MEPS_LIST = sorted(
+    [{'id': int(m.find('id').text), 'name': m.find('fullName').text} for m in root.findall('mep')],
+    key=lambda x: x['name']
+)
+MEPS_INFO = {
+    int(m.find('id').text): {
+        'name': m.find('fullName').text,
+        'country': m.find('country').text,
+        'group': m.find('politicalGroup').text
+    }
+    for m in root.findall('mep')
+}
 
 # Starte mit befüllen der DB, falls leer
 def load_votes_from_json():
     session = SessionLocal()
     if session.query(Vote).count() == 0:
         # vote_data.json laden
-        with open("vote_data.json", encoding="utf-8") as f:
+        with open(BASE_DIR / 'vote_data.json', encoding="utf-8") as f:
             data = json.load(f)
-        # member_votes.json laden
-        with open("member_votes.json", encoding="utf-8") as mvf:
-            member_votes_all = json.load(mvf)
+        # Flatten aller member_votes direkt aus vote_data.json
+        member_votes_all = []
+        for itm in data:
+            member_votes_all.extend(itm.get("member_votes", []))
 
         for item in data:
-            # cast vote_id aus vote_data.json
             vote_id = int(item["id"])
-            # Position des Abgeordneten mit member_id 256971 suchen
             position = next(
                 (mv["position"] for mv in member_votes_all
                  if int(mv.get("vote_id", 0)) == vote_id
@@ -130,19 +141,11 @@ templates = Jinja2Templates(directory="templates")
 # Neue Hauptseite
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, lang: str = Query('de', pattern='^(de|en)$')):
-    # Abstimmungsverhalten für Lukas sammeln
-    with open("vote_data.json", encoding="utf-8") as vf:
-        votes_data = json.load(vf)
-    with open("member_votes.json", encoding="utf-8") as mvf:
-        mv_data = json.load(mvf)
     counts = {"FOR": 0, "AGAINST": 0, "ABSTENTION": 0, "DID_NOT_VOTE": 0}
-    for vote in votes_data:
-        vid = vote.get("id")
-        pos = next(
-            (m.get("position") for m in mv_data
-             if str(m.get("vote_id")) == str(vid) and str(m.get("member_id")) == "256971"),
-            "DID_NOT_VOTE"
-        )
+    # Zähle Positionen direkt aus VOTE_DATA_LIST
+    for vote in VOTE_DATA_LIST:
+        pos = next((mv.get("position") for mv in vote.get("member_votes", [])
+                    if mv.get("member_id") == 256971), "DID_NOT_VOTE")
         if pos in counts:
             counts[pos] += 1
     texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
@@ -174,9 +177,8 @@ def get_votes_html(request: Request,
                    member_id: int = Query(256971),
                    show_all: bool = Query(False, description="If true, show all votes without pagination."),
                    lang: str = Query('de', pattern='^(de|en)$')):
-    # Load all votes from JSON (but only IDs and titles for filtering/pagination)
-    with open("vote_data.json", encoding="utf-8") as f:
-        all_votes = json.load(f)
+    # Load all votes
+    all_votes = VOTE_DATA_LIST
     # --- Robust date parsing for DD-MM-YYYY (TT-MM-JJJJ) to YYYY-MM-DD ---
     def parse_ddmmyyyy(date_str):
         if not date_str:
@@ -200,6 +202,7 @@ def get_votes_html(request: Request,
             continue
         if start_date_conv and v.get("timestamp", "") < start_date_conv:
             continue
+        
         if end_date_conv and v.get("timestamp", "") > end_date_conv:
             continue
         filtered_votes.append(v)
@@ -216,22 +219,18 @@ def get_votes_html(request: Request,
         start = (page - 1) * votes_per_page
         end = start + votes_per_page
         paginated_votes = filtered_votes[start:end]
-    # ...existing code for member_votes.json, members, etc...
-    with open("member_votes.json", encoding="utf-8") as mvf:
-        mv_all = json.load(mvf)
-    members_map = {}
-    for mv in mv_all:
-        try:
-            mid = int(mv.get("member_id", 0))
-            ln  = mv.get("last_name", "").strip()
-            if mid and ln:
-                members_map[mid] = ln
-        except (ValueError, TypeError):
-            continue
-    members = [{"id": mid, "last_name": ln} for mid, ln in members_map.items()]
-    members.sort(key=lambda x: x["last_name"])
+    # Flatten member_votes for counting total and raw positions
+    mv_all = []
+    for v in all_votes:
+        mv_all.extend(v.get("member_votes", []))
+    # Use full XML-based MEP list for dropdown
+    members = MEPS_LIST
     # Berechne die Gesamtzahl der abgegebenen Stimmen des ausgewählten Abgeordneten
-    total_member_votes = sum(1 for mv in mv_all if int(mv.get('member_id', 0)) == member_id and mv.get('position') in ("FOR", "AGAINST", "ABSTENTION"))
+    total_member_votes = sum(
+        1 for mv in mv_all
+        if int(mv.get('member', {}).get('id', 0)) == member_id
+        and mv.get('position') in ("FOR", "AGAINST", "ABSTENTION")
+    )
     # Prüfen, ob Member noch im XML ist
     if member_id not in MEPS_IDS:
         member_missing = True
@@ -240,6 +239,9 @@ def get_votes_html(request: Request,
     else:
         member_missing = False
         sel_member_name = ""
+    # Additional selected member info
+    sel_member_info = MEPS_INFO.get(member_id, {})
+
     # Formatierte Votes mit Position für ausgewähltes Mitglied und Chart-Daten
     formatted_votes = []
     for v in paginated_votes:
@@ -249,17 +251,13 @@ def get_votes_html(request: Request,
             pos = mv.get("position")
             if pos in counts:
                 counts[pos] += 1
-        # Find the selected member's vote for this topic (must match both vote_id and member_id as int)
-        raw_pos = None
-        for m in mv_all:
-            try:
-                if int(m.get("vote_id", 0)) == int(v["id"]) and int(m.get("member_id", 0)) == int(member_id):
-                    raw_pos = m.get("position")
-                    break
-            except Exception:
-                continue
-        if not raw_pos:
-            raw_pos = "DID_NOT_VOTE"
+        # Find the selected member's vote for this topic directly in this vote's data
+        # Lookup position by nested member.id in each member_vote
+        raw_pos = next(
+            (mv.get("position") for mv in v.get("member_votes", [])
+             if int(mv.get("member", {}).get("id", 0)) == member_id),
+            "DID_NOT_VOTE"
+        )
         ref = v.get("reference") or ""
         m = re.match(r"([A-Za-z])(\d+)-(\d+)/(\d+)", ref)
         if m:
@@ -279,6 +277,9 @@ def get_votes_html(request: Request,
         })
     shown_votes = len(formatted_votes)
     texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
+    # Erstelle Liste aller Geo-Areas für Filter-Dropdown
+    geo_set = { (area.get('code'), area.get('label')) for v in all_votes for area in v.get('geo_areas', []) }
+    geo_options = [ {'code': code, 'label': label} for code, label in sorted(geo_set, key=lambda x: x[1]) ]
     return templates.TemplateResponse("votes.html", {
         "request": request,
         "query": query or "",
@@ -299,6 +300,8 @@ def get_votes_html(request: Request,
         "texts": texts,
         "total_member_votes": total_member_votes,
         "current_date": datetime.date.today().strftime("%Y-%m-%d"),
+        "sel_member_info": sel_member_info,
+        "geo_options": geo_options,
     })
 
 @app.get("/votes/detail/{vote_id}", response_class=HTMLResponse)
@@ -349,12 +352,11 @@ def search_votes(q: str = Query(..., min_length=1)):
 @app.get("/members/search")
 def search_members(last_name: str = Query(..., min_length=1)):
     """Suche nach Abgeordneten basierend auf ihrem Nachnamen."""
-    with open("vote_data.json", encoding="utf-8") as f:
-        data = json.load(f)
+    data = VOTE_DATA_LIST
 
     members = []
     for vote in data:
-        for member_vote in vote.get("member_votes.json", []):
+        for member_vote in vote.get("member_votes", []):
             member = member_vote.get("member", {})
             if last_name.lower() in member.get("last_name", "").lower():
                 members.append(member)
@@ -364,8 +366,7 @@ def search_members(last_name: str = Query(..., min_length=1)):
 @app.get("/members")
 def get_all_members():
     """Gibt eine Liste aller Abgeordneten zurück."""
-    with open("vote_data.json", encoding="utf-8") as f:
-        data = json.load(f)
+    data = VOTE_DATA_LIST
 
     members = {}
     for vote in data:

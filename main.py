@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).parent
 # Alle Vote-IDs dynamisch aus HTML extrahieren
 vote_ids = set()
 
-for page in range(1, 70):  # Maximal 5 Seiten
+for page in range(1, 2):  # Maximal 5 Seiten
     html_url = f'https://howtheyvote.eu/votes?sort=relevance&page={page}'
     html_response = requests.get(html_url)
 

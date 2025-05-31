@@ -8,6 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
     <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Noto+Sans:wght@400;500;700;900&family=Public+Sans:wght@400;500;700;900" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Select2 CSS for searchable dropdown -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <style>
       html {
           scroll-behavior: smooth;
@@ -210,16 +214,33 @@
             <h1 class="mb-0">{{ texts.votes_title }}</h1>
             <form method="get" action="/votes/html" class="flex items-center gap-2">
                 <span class="text-lg font-medium">{{ texts.of }}</span>
-                <select id="member_id" name="member_id" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
-                    {% for member in members %}
-                    <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.last_name }}</option>
-                    {% endfor %}
+                <!-- Member select dropdown -->
+                <select id="member_id" name="member_id" class="form-select member-select" style="width:100%;" onchange="this.form.submit()">
+                  <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
+                  {% for member in members %}
+                  <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.name }}</option>
+                  {% endfor %}
                 </select>
-                <input type="hidden" name="page" value="{{ page }}">
+                <!-- Preserve other filters -->
                 <input type="hidden" name="lang" value="{{ lang }}">
-                {% if query %}<input type="hidden" name="query" value="{{ query }}">{% endif %}
+                <input type="hidden" name="query" value="{{ query }}">
+                <input type="hidden" name="geo" value="{{ geo }}">
+                <input type="hidden" name="start_date" value="{{ start_date }}">
+                <input type="hidden" name="end_date" value="{{ end_date }}">
                 {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
             </form>
+            {% if sel_member_info %}
+            <div class="ms-auto">
+              <div class="card bg-white p-3 shadow-sm" style="min-width:220px;">
+                <h6 class="card-title mb-2">{{ sel_member_info.name }}</h6>
+                <p class="mb-1"><strong>Land:</strong> {{ sel_member_info.country }}</p>
+                <p class="mb-1"><strong>Fraktion:</strong> {{ sel_member_info.group }}</p>
+                {% if sel_member_info.age %}
+                <p class="mb-0"><strong>Alter:</strong> {{ sel_member_info.age }}</p>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
         </div>
     </div>
     <main class="container my-4" id="main-content" style="opacity:1; transition: opacity 0.3s;">
@@ -251,9 +272,23 @@
                         <input type="text" id="end_date" name="end_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                     </div>
                 </div>
+                <!-- Geo-Filter Dropdown -->
+                <div class="col-md-2">
+                    <label for="geo" class="form-label">{{ texts.keyword }} Geo</label>
+                    <select id="geo" name="geo" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">{{ texts.show_all or 'Alle Bereiche' }}</option>
+                        {% for opt in geo_options %}
+                        <option value="{{ opt.code }}" {% if geo==opt.code %}selected{% endif %}>{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="col-md-1 text-end">
                     <button type="submit" class="btn btn-primary w-100">{{ texts.search }}</button>
                 </div>
+                <!-- Preserve member selection and view mode -->
+                <input type="hidden" name="member_id" value="{{ selected_member_id }}">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
             </form>
         </div>
         {% if member_missing %}
@@ -469,6 +504,20 @@
         }
     });
     var startPicker = flatpickr.instances.find(i => i.input.id === 'start_date');
+    </script>
+    <script>
+      // Initialize Select2 on member dropdown for search
+      $(document).ready(function() {
+        $('#member_id').select2({
+          placeholder: '{{ texts.member }} auswählen...',
+          allowClear: true,
+          width: 'resolve'
+        });
+        // auto-submit on change
+        $('#member_id').on('change', function() {
+          $(this).closest('form').submit();
+        });
+      });
     </script>
 </body>
 </html>
