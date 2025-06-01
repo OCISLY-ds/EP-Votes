@@ -19,11 +19,13 @@ import orjson
 import brotli
 import datetime
 
-app = FastAPI()
+# Define BASE_DIR first so we can mount static files
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI(title="Lukasvotes", version="0.1.0")
 app.add_middleware(GZipMiddleware, minimum_size=500)
 # Serve static directory for assets (e.g., icon2.png)
-BASE_DIR = Path(__file__).parent  # Define BASE_DIR before mounting static files
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 # Internationalization
 LANG_TEXTS = {
@@ -151,8 +153,22 @@ def home(request: Request, lang: str = Query('de', pattern='^(de|en)$')):
                     if mv.get("member_id") == 256971), "DID_NOT_VOTE")
         if pos in counts:
             counts[pos] += 1
+    # Group MEPs by political group for membership count
+    group_map = {}
+    for info in MEPS_INFO.values():
+        grp = info.get('group')
+        group_map[grp] = group_map.get(grp, 0) + 1
+    GROUP_COUNTS = [{'group': grp, 'members': cnt} for grp, cnt in group_map.items()]
+    TOTAL_MEPS = sum(item['members'] for item in GROUP_COUNTS)
     texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
-    return templates.TemplateResponse("index.html", {"request": request, "counts": counts, "lang": lang, "texts": texts})
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "counts": counts,
+        "lang": lang,
+        "texts": texts,
+        "group_counts": GROUP_COUNTS,
+        "total_meps": TOTAL_MEPS
+    })
 
 @app.get("/votes")
 def get_votes(query: str = None, page: int = 1, page_size: int = 50):
@@ -256,6 +272,24 @@ def get_votes_html(request: Request,
     if photo:
         sel_member_info['photo_url'] = photo
 
+    # Compute age from date_of_birth if available
+    dob = None
+    for vote in VOTE_DATA_LIST:
+        for mv in vote.get('member_votes', []):
+            if int(mv.get('member', {}).get('id', 0)) == member_id:
+                dob = mv.get('member', {}).get('date_of_birth')
+                break
+        if dob:
+            break
+    if dob:
+        try:
+            bd = datetime.datetime.strptime(dob, '%Y-%m-%d').date()
+            today = datetime.date.today()
+            age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+            sel_member_info['age'] = age
+        except Exception:
+            pass
+
     # Formatierte Votes mit Position für ausgewähltes Mitglied und Chart-Daten
     formatted_votes = []
     for v in paginated_votes:
@@ -337,12 +371,32 @@ def vote_detail(request: Request, vote_id: int, lang: str = Query('de', regex='^
             faction_map[faction][pos] += 1
     # Prepare data for template
     texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
+    # Attach member count to each group by matching JSON group label or short_label in XML-based MEP_INFO
+    for grp in vote.get('stats', {}).get('by_group', []):
+        # Normalize JSON label to match XML text
+        grp_label = grp.get('group', {}).get('label', '').replace('’', "'")
+        short_lbl = grp.get('group', {}).get('short_label', '')
+        # Count MEPs whose XML group string contains either label or short label
+        count = sum(
+            1
+            for info in MEPS_INFO.values()
+            if grp_label and grp_label in info.get('group', '')
+               or short_lbl and short_lbl in info.get('group', '')
+        )
+        grp['members'] = count
+    # Compute document link for opening in detail view
+    ref = vote.get('reference') or ''
+    m = re.match(r"([A-Za-z])(\d+)-(\d+)/(\d+)", ref)
+    if m:
+        link_ref = f"{m.group(1)}-{m.group(2)}-{m.group(4)}-{m.group(3)}"
+    else:
+        link_ref = ref.replace('/', '-')
+    vote['document_link'] = f"https://www.europarl.europa.eu/doceo/document/{link_ref}_EN.html"
     return templates.TemplateResponse("detail.html", {
         "request": request,
         "vote": vote,
-        "faction_map": faction_map,
         "lang": lang,
-        "texts": texts
+        "texts": texts,
     })
 
 @app.get("/votes/search")

@@ -6,12 +6,15 @@
     <title>{{ vote.display_title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        .voting-header { background: #FFA600; color: white; padding: 2rem 0; text-align: center; }
+        .voting-header h1 { margin:0; font-size:2rem; color: white; }
         .chart-wrapper {
             position: relative;
             width: 200px;
             height: 200px;
             margin: 0 auto;
         }
+        .membership-chart { width: 150px; height: 150px; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -20,26 +23,35 @@
         <a href="?lang=de" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
         <a href="?lang=en" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
     </div>
+    <!-- Banner -->
+    <div class="voting-header">
+        <h1>{{ vote.display_title }}</h1>
+        {% set dt = vote.timestamp.split('T')[0].split('-') %}
+        <p class="mb-0">Datum: {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}</p>
+    </div>
     <div class="container my-4">
-        <h1 class="mb-3 text-center">{{ vote.display_title }}</h1>
         <p class="text-muted text-center">{{ vote.description }}</p>
+        <div class="text-center mb-4">
+            <a href="{{ vote.document_link }}" class="btn btn-sm" style="background-color:#f2aa3c; color:#000;">{{ texts.open_document }}</a>
+        </div>
         <!-- Per-faction vote distribution -->
         <div class="row g-4 justify-content-center">
-            {% for faction, counts in faction_map.items() %}
+            {% for grp in vote.stats.by_group %}
             <div class="col-6 col-md-3 text-center">
-                <h6 class="mb-2">{{ faction }}</h6>
+                <h6 class="mb-2">{{ grp.group.short_label }}</h6>
                 <div class="chart-wrapper">
-                    <canvas id="faction-chart-{{ loop.index0 }}"
-                            data-for="{{ counts.FOR }}"
-                            data-against="{{ counts.AGAINST }}"
-                            data-abstention="{{ counts.ABSTENTION }}"
-                            data-novote="{{ counts.DID_NOT_VOTE }}"></canvas>
-                    <!-- Legend mit absoluten Stimmenzahlen -->
+                    <canvas id="group-chart-{{ loop.index0 }}"
+                            data-for="{{ grp.stats.FOR }}"
+                            data-against="{{ grp.stats.AGAINST }}"
+                            data-abstention="{{ grp.stats.ABSTENTION }}"
+                            data-novote="{{ grp.stats.DID_NOT_VOTE }}"
+                            data-members="{{ grp.members }}"></canvas>
+                    <!-- Legend with absolute vote counts -->
                     <ul class="list-unstyled small mt-2 text-start">
-                        <li class="text-success">{{ texts.for_label }}: {{ counts.FOR }}</li>
-                        <li class="text-danger">{{ texts.against_label }}: {{ counts.AGAINST }}</li>
-                        <li class="text-info">{{ texts.abstention_label }}: {{ counts.ABSTENTION }}</li>
-                        <li class="text-secondary">{{ texts.did_not_vote_label }}: {{ counts.DID_NOT_VOTE }}</li>
+                        <li class="text-success">{{ texts.for_label }}: {{ grp.stats.FOR }}</li>
+                        <li class="text-danger">{{ texts.against_label }}: {{ grp.stats.AGAINST }}</li>
+                        <li class="text-info">{{ texts.abstention_label }}: {{ grp.stats.ABSTENTION }}</li>
+                        <li class="text-secondary">{{ texts.did_not_vote_label }}: {{ grp.stats.DID_NOT_VOTE }}</li>
                     </ul>
                 </div>
             </div>
@@ -52,20 +64,39 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-    // Per-faction donut charts
-    document.querySelectorAll('canvas[id^="faction-chart-"]').forEach(function(c){
+    // Per-group donut charts and membership overlay if present
+    document.querySelectorAll('canvas[id^="group-chart-"]').forEach(function(c){
         var f = +c.dataset.for;
         var a = +c.dataset.against;
         var ab = +c.dataset.abstention;
         var nv = +c.dataset.novote;
+        var members = parseInt(c.dataset.members || 0, 10);
         var data = [f, a, ab, nv];
-        var labels = ["{{ texts.for_label }}","{{ texts.against_label }}","{{ texts.abstention_label }}","{{ texts.did_not_vote_label }}"];
         new Chart(c, {
             type:'doughnut',
-            data:{ labels: labels, datasets:[{ data: data, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
-            options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ display:false } } }
+            data:{ datasets:[{ data: data, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
+            options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ display:false } } },
+            plugins: [{
+                id: 'centerText',
+                afterDraw: function(chart){
+                    var ctx = chart.ctx;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#000';
+                    var x = chart.width / 2;
+                    var y = chart.height / 2;
+                    // Draw member count
+                    ctx.font = 'bold 1.2em sans-serif';
+                    ctx.fillText(members.toString(), x, y - 8);
+                    // Draw label
+                    ctx.font = '0.8em sans-serif';
+                    ctx.fillText('Mitglieder', x, y + 8);
+                    ctx.restore();
+                }
+            }]
         });
     });
-    </script>
-</body>
-</html>
+     </script>
+ </body>
+ </html>

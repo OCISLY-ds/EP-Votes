@@ -6,7 +6,7 @@
     <title>Votes</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
-    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Noto+Sans:wght@400;500;700;900&family=Public+Sans:wght@400;500;700;900" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <!-- Select2 CSS for searchable dropdown -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -17,7 +17,7 @@
           scroll-behavior: smooth;
         }
         body, input, button, select {
-          font-family: 'Public Sans', 'Noto Sans', sans-serif !important;
+          font-family: 'Montserrat', sans-serif !important;
           font-smooth: always;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
@@ -210,23 +210,24 @@
       <div id="square4"></div>
       <div id="square5"></div>
     </div>
-    <!-- Language switcher -->
-    <div class="text-end p-2">
-        <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
-        <a href="?lang=en&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
-    </div>
-    <div class="voting-header">
+    <div class="voting-header position-relative">
+        <!-- Language switcher inside header -->
+        <div class="position-absolute top-0 end-0 p-3">
+            <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
+            <a href="?lang=en&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
+        </div>
         <div class="container flex flex-wrap items-center justify-between gap-2">
             <!-- Logo and title -->
             <div class="d-flex align-items-center">
-              <img src="/static/icon2.png" alt="Logo" class="me-3" />
+              <a href="https://partei-des-fortschritts.de/" target="_blank" rel="noopener">
+                <img src="/static/icon2.png" alt="Logo" class="me-3" />
+              </a>
                <h1 class="mb-0">{{ texts.votes_title }}</h1>
             </div>
             <form method="get" action="/votes/html" class="flex items-center gap-2">
-                <span class="text-lg font-medium">{{ texts.of }}</span>
-                <!-- Member select dropdown -->
-                <select id="member_id" name="member_id" class="form-select member-select" style="width:100%;" onchange="this.form.submit()">
-                  <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
+                 <!-- Member select dropdown -->
+                 <select id="member_id" name="member_id" class="form-select member-select" style="width:100%;" onchange="this.form.submit()">
+                   <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
                   {% for member in members %}
                   <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.name }}</option>
                   {% endfor %}
@@ -246,11 +247,11 @@
                 <img src="https://howtheyvote.eu{{ sel_member_info.photo_url }}" alt="Foto von {{ sel_member_name }}" class="rounded-circle me-3" style="width:100px; height:100px; object-fit:cover; object-position:50% 30%;" />
                 {% endif %}
                 <div class="card-body p-0 text-start">
-                  <p class="mb-2"><strong>Land:</strong> {{ sel_member_info.country }}</p>
-                  <p class="mb-2"><strong>Fraktion:</strong> {{ sel_member_info.group }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">Land:</strong> {{ sel_member_info.country }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">Fraktion:</strong> {{ sel_member_info.group }}</p>
                   {% if sel_member_info.age %}
-                  <p class="mb-0"><strong>Alter:</strong> {{ sel_member_info.age }}</p>
-                  {% endif %}
+                  <p class="mb-0"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">Alter:</strong> {{ sel_member_info.age }}</p>
+                 {% endif %}
                 </div>
               </div>
             </div>
@@ -278,12 +279,12 @@
                       </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-auto">
                     <label for="date_range" class="form-label">Zeitraum</label>
-                    <div class="input-group">
-                        <input type="text" id="start_date" name="start_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                    <div class="input-group w-auto">
+                        <input type="text" id="start_date" name="start_date" class="form-control" style="width:11ch;" placeholder="TT.MM.JJJJ" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                         <span class="input-group-text">bis</span>
-                        <input type="text" id="end_date" name="end_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                        <input type="text" id="end_date" name="end_date" class="form-control" style="width:11ch;" placeholder="TT.MM.JJJJ" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                     </div>
                 </div>
                 <!-- Geo-Filter Dropdown -->
@@ -311,7 +312,7 @@
         </div>
         {% endif %}
         <!-- Ergebnisse-Tabelle -->
-        <div class="d-flex flex-nowrap overflow-auto pb-3">
+        <div id="votes-container" class="d-flex flex-nowrap overflow-auto pb-3">
             {% if not votes %}
             <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
             {% else %}
@@ -500,7 +501,7 @@
       });
     });
     flatpickr("#start_date", {
-        dateFormat: "d-m-Y",
+        dateFormat: "d.m.Y",
         allowInput: true,
         locale: "de",
         maxDate: document.getElementById('end_date').value || undefined,
@@ -510,11 +511,11 @@
         }
     });
     var endPicker = flatpickr("#end_date", {
-        dateFormat: "d-m-Y",
+        dateFormat: "d.m.Y",
         allowInput: true,
         locale: "de",
         minDate: document.getElementById('start_date').value || undefined,
-        maxDate: "25-05-2025",
+        maxDate: "25.05.2025",
         onChange: function(selectedDates, dateStr, instance) {
             // Set minDate for start_date
             startPicker.set('maxDate', dateStr);
@@ -536,10 +537,20 @@
         });
       });
     </script>
-        </main>
-    <!-- Footer with license and API source -->
-    <footer class="text-center py-3 bg-light">
-      <small>API via <a href="https://github.com/HowTheyVote/howtheyvote" target="_blank" rel="noopener">HowTheyVote/howtheyvote</a> (AGPL-3.0)</small>
-    </footer>
+    <script>
+      // Keyboard navigation for vote cards container
+      (function() {
+        var container = document.getElementById('votes-container');
+        document.addEventListener('keydown', function(e) {
+          if (!container) return;
+          var scrollAmount = container.clientWidth * 0.8;
+          if (e.key === 'ArrowRight') {
+            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+          } else if (e.key === 'ArrowLeft') {
+            container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+          }
+        });
+      })();
+    </script>
 </body>
 </html>
