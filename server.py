@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Request, BackgroundTasks, Query
 from fastapi.responses import HTMLResponse, ORJSONResponse
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from models import Base, Vote
+from models import Base, Vote, Stats, ByGroup, ByCountry, MemberVote
 import json
 import os
 import urllib.parse
@@ -15,73 +15,201 @@ import time
 from fastapi_socketio import SocketManager
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-import orjson
-import brotli
-import datetime
+from datetime import datetime, date
 
-# Define BASE_DIR first so we can mount static files
-BASE_DIR = Path(__file__).resolve().parent
-
-app = FastAPI(title="Lukasvotes", version="0.1.0")
-app.add_middleware(GZipMiddleware, minimum_size=500)
-# Serve static directory for assets (e.g., icon2.png)
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-
-# Internationalization
+# Internationalisierungstexte
 LANG_TEXTS = {
     'de': {
-        'votes_title': 'Abstimmungen von',
-        'home_header': 'Abstimmungsverhalten von Lukas Sieper',
         'for_label': 'Für',
         'against_label': 'Gegen',
         'abstention_label': 'Enthaltung',
         'did_not_vote_label': 'Nicht abgegeben',
-        'detail_view': 'Zur Detail-Ansicht',
-        'keyword': 'Stichwort',
-        'keyword_placeholder': 'Titel durchsuchen...',
-        'member': 'Abgeordneter',
-        'search': 'Suchen',
         'open_document': 'Dokument öffnen',
-        'my_position': 'Meine Position',
-        'no_votes': 'Keine Abstimmungen gefunden.',
-        'shown_of': 'Angezeigt: {shown} von insgesamt {total} Abstimmungen',
-        'show_all': 'Alle anzeigen',
         'paginated': 'Mit Pagination anzeigen',
+        'votes_title': 'Abstimmungen',
+        'member': 'Abgeordnete',
+        'keyword': 'Stichwort',
+        'keyword_placeholder': 'Stichwort eingeben',
+        'total_member_votes': 'Abgegebene Stimmen',
+        'search': 'Suchen',
+        'show_all': 'Alle anzeigen',
         'page': 'Seite',
+        'shown_of': 'Zeige {shown} von {total}',
+        'age': 'Alter',
+        'of': 'von',
+        'my_position': 'Meine Stimme'
     },
     'en': {
-        'votes_title': 'Votes',
-        'home_header': 'Voting behavior of Lukas Sieper',
         'for_label': 'For',
         'against_label': 'Against',
         'abstention_label': 'Abstention',
         'did_not_vote_label': 'No vote',
-        'detail_view': 'View details',
-        'keyword': 'Keyword',
-        'keyword_placeholder': 'Search titles...',
-        'member': 'Member',
-        'search': 'Search',
         'open_document': 'Open document',
-        'my_position': 'My position',
-        'no_votes': 'No votes found.',
-        'shown_of': 'Showing {shown} of {total} votes',
-        'show_all': 'Show all',
         'paginated': 'Paginated view',
+        'votes_title': 'Votes',
+        'member': 'Member',
+        'keyword': 'Keyword',
+        'keyword_placeholder': 'Enter keyword',
+        'total_member_votes': 'Total member votes',
+        'search': 'Search',
+        'show_all': 'Show all',
         'page': 'Page',
+        'shown_of': 'Showing {shown} of {total}',
+        'of': 'of',
+        'my_position': 'My vote'
     }
 }
 
-DATABASE_URL = "sqlite:///./votes.db"
+# Basis-Verzeichnis ermitteln
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI()
+# Static-Files (z.B. CSS, JS) unter /static verfügbar machen
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+# -----------------------------------
+# 1) DB-Engine und Session initialisieren
+# -----------------------------------
+DATABASE_URL = f"sqlite:///{BASE_DIR / 'votes.db'}"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
+
+# -----------------------------------
+# 2) Hilfsfunktion: Prüfen, ob raw_json in votes-Spalte existiert
+# -----------------------------------
+def raw_json_missing():
+    with engine.connect() as conn:
+        result = conn.execute(text("PRAGMA table_info(votes)")).fetchall()
+    # PRAGMA table_info gibt Zeilen: (cid, name, type, notnull, dflt_value, pk)
+    existing_columns = [row[1] for row in result]
+    return "raw_json" not in existing_columns
+
+# -----------------------------------
+# 3) Tabellen anlegen bzw. migrieren
+# -----------------------------------
+# Wenn Tabelle "votes" existiert, aber raw_json fehlt → alle Tabellen droppen und neu anlegen
+if raw_json_missing():
+    Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
-# GLOBAL JSON-Daten laden, member_votes.json entfernen
-with open(BASE_DIR / 'vote_data.json', encoding='utf-8') as f:
-    VOTE_DATA_LIST = json.load(f)
-# member_votes.json wird nicht mehr benötigt
-MEMBER_VOTES_LIST: list = []
-# MEP-Liste laden mit einfachem Caching (1 Tag)
+# ---------------------------------------------------------
+# 4) Bei erstem Start oder nach Migration: aus JSON in die SQL-DB migrieren
+# ---------------------------------------------------------
+def init_db_from_json():
+    session = SessionLocal()
+    existing = session.query(Vote).first()
+    if existing:
+        session.close()
+        return
+
+    data_path = BASE_DIR / "vote_data.json"
+    with open(data_path, 'r', encoding='utf-8') as f:
+        vote_list = json.load(f)
+
+    for item in vote_list:
+        vote_id = int(item.get("id"))
+        # 1) Vote-Objekt anlegen (Basis-Felder)
+        v = Vote(
+            id=vote_id,
+            timestamp=item.get("timestamp"),
+            display_title=item.get("display_title"),
+            description=item.get("description", ""),
+            reference=item.get("reference", ""),
+            geo_areas=", ".join(area.get("label", "") for area in item.get("geo_areas", [])),
+            position=item.get("result", "UNKNOWN"),
+            raw_json=json.dumps(item, ensure_ascii=False)
+        )
+        session.add(v)
+        session.flush()
+
+        # 2) Stats anlegen
+        s_data = item.get("stats", {})
+        total = s_data.get("total", {})
+        stats = Stats(
+            vote_id=v.id,
+            total_for=total.get("FOR", 0),
+            total_against=total.get("AGAINST", 0),
+            total_abstention=total.get("ABSTENTION", 0),
+            total_did_not_vote=total.get("DID_NOT_VOTE", 0),
+        )
+        session.add(stats)
+        session.flush()
+
+        # 2a) ByGroup
+        for grp_entry in s_data.get("by_group", []):
+            grp = grp_entry.get("group", {})
+            st = grp_entry.get("stats", {})
+            bg = ByGroup(
+                stats_id=stats.id,
+                group_code=grp.get("code", ""),
+                group_label=grp.get("label", ""),
+                group_short_label=grp.get("short_label", ""),
+                for_count=st.get("FOR", 0),
+                against_count=st.get("AGAINST", 0),
+                abstention_count=st.get("ABSTENTION", 0),
+                did_not_vote_count=st.get("DID_NOT_VOTE", 0)
+            )
+            session.add(bg)
+
+        # 2b) ByCountry
+        for ctry_entry in s_data.get("by_country", []):
+            ctry = ctry_entry.get("country", {})
+            st = ctry_entry.get("stats", {})
+            bc = ByCountry(
+                stats_id=stats.id,
+                country_code=ctry.get("code", ""),
+                country_iso_alpha_2=ctry.get("iso_alpha_2", ""),
+                country_label=ctry.get("label", ""),
+                for_count=st.get("FOR", 0),
+                against_count=st.get("AGAINST", 0),
+                abstention_count=st.get("ABSTENTION", 0),
+                did_not_vote_count=st.get("DID_NOT_VOTE", 0)
+            )
+            session.add(bc)
+
+        # 3) MemberVotes
+        for mv_entry in item.get("member_votes", []):
+            m = mv_entry.get("member", {})
+            mv = MemberVote(
+                vote_id=v.id,
+                member_id=m.get("id"),
+                first_name=m.get("first_name", ""),
+                last_name=m.get("last_name", ""),
+                date_of_birth=m.get("date_of_birth", ""),
+                country_code=m.get("country", {}).get("code", ""),
+                country_iso_alpha_2=m.get("country", {}).get("iso_alpha_2", ""),
+                country_label=m.get("country", {}).get("label", ""),
+                group_code=m.get("group", {}).get("code", ""),
+                group_label=m.get("group", {}).get("label", ""),
+                group_short_label=m.get("group", {}).get("short_label", ""),
+                photo_url=m.get("photo_url", ""),
+                thumb_url=m.get("thumb_url", ""),
+                email=m.get("email", ""),
+                facebook=m.get("facebook", ""),
+                twitter=m.get("twitter", ""),
+                position=mv_entry.get("position", "")
+            )
+            session.add(mv)
+
+    session.commit()
+    session.close()
+
+# Einmalig ausführen
+init_db_from_json()
+
+# ---------------------------------------------------------
+# 5) Daten aus DB in-memory laden (VOTE_DATA_LIST)
+# ---------------------------------------------------------
+session = SessionLocal()
+vote_rows = session.query(Vote).all()
+VOTE_DATA_LIST = [json.loads(v.raw_json) for v in vote_rows]
+for vote in VOTE_DATA_LIST:
+    vote['chart_data'] = vote.get('stats', {}).get('total', {})
+session.close()
+
+# ---------------------------------------------------------
+# 6) MEP-Daten mit Caching laden (bleibt wie vorher)
+# ---------------------------------------------------------
 cache_path = BASE_DIR / 'meps_cache.xml'
 if cache_path.exists() and time.time() - cache_path.stat().st_mtime < 86400:
     xml_data = cache_path.read_text(encoding='utf-8')
@@ -90,430 +218,322 @@ else:
     cache_path.write_text(xml_data, encoding='utf-8')
 
 root = ET.fromstring(xml_data)
-MEPS_IDS = { int(m.find('id').text) for m in root.findall('mep') }
-# Full list of MEPs for dropdown (id and full name)
+MEPS_IDS = {int(m.find('id').text) for m in root.findall('mep')}
 MEPS_LIST = sorted(
-    [{'id': int(m.find('id').text), 'name': m.find('fullName').text} for m in root.findall('mep')],
+    [{'id': int(m.find('id').text), 'name': m.findtext('fullName', '')}
+     for m in root.findall('mep')],
     key=lambda x: x['name']
 )
 MEPS_INFO = {
     int(m.find('id').text): {
-        'name': m.find('fullName').text,
-        'country': m.find('country').text,
-        'group': m.find('politicalGroup').text
+        'first_name': m.findtext('firstName', ''),
+        'last_name': m.findtext('lastName', ''),
+        'full_name': m.findtext('fullName', ''),
+        'country': m.findtext('country', ''),
+        'political_group': m.findtext('politicalGroup', ''),
+        'birth_date': m.findtext('birthDate', ''),
+        'url': m.findtext('url', '')
     }
     for m in root.findall('mep')
 }
 
-# Starte mit befüllen der DB, falls leer
-def load_votes_from_json():
-    session = SessionLocal()
-    if session.query(Vote).count() == 0:
-        # vote_data.json laden
-        with open(BASE_DIR / 'vote_data.json', encoding="utf-8") as f:
-            data = json.load(f)
-        # Flatten aller member_votes direkt aus vote_data.json
-        member_votes_all = []
-        for itm in data:
-            member_votes_all.extend(itm.get("member_votes", []))
-
-        for item in data:
-            vote_id = int(item["id"])
-            position = next(
-                (mv["position"] for mv in member_votes_all
-                 if int(mv.get("vote_id", 0)) == vote_id
-                 and int(mv.get("member_id", 0)) == 256971),
-                "UNKNOWN"
-            )
-            vote = Vote(
-                id=vote_id,
-                timestamp=item["timestamp"],
-                display_title=item["display_title"],
-                description=item["description"],
-                reference=item["reference"],
-                geo_areas=", ".join(area.get('label','') for area in item.get('geo_areas', [])),
-                position=position
-            )
-            session.add(vote)
-        session.commit()
-    session.close()
-
-load_votes_from_json()
-
-# Template-Ordner initialisieren
 templates = Jinja2Templates(directory="templates")
+socket_manager = SocketManager(app=app)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Neue Hauptseite
+
+# -----------------------------------
+# 7) Routen-Definitionen (unverändert)
+# -----------------------------------
+
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request, lang: str = Query('de', pattern='^(de|en)$')):
-    counts = {"FOR": 0, "AGAINST": 0, "ABSTENTION": 0, "DID_NOT_VOTE": 0}
-    # Zähle Positionen direkt aus VOTE_DATA_LIST
-    for vote in VOTE_DATA_LIST:
-        pos = next((mv.get("position") for mv in vote.get("member_votes", [])
-                    if mv.get("member_id") == 256971), "DID_NOT_VOTE")
-        if pos in counts:
-            counts[pos] += 1
-    # Group MEPs by political group for membership count
-    group_map = {}
-    for info in MEPS_INFO.values():
-        grp = info.get('group')
-        group_map[grp] = group_map.get(grp, 0) + 1
-    GROUP_COUNTS = [{'group': grp, 'members': cnt} for grp, cnt in group_map.items()]
-    TOTAL_MEPS = sum(item['members'] for item in GROUP_COUNTS)
-    texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "counts": counts,
-        "lang": lang,
-        "texts": texts,
-        "group_counts": GROUP_COUNTS,
-        "total_meps": TOTAL_MEPS
-    })
+def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/votes")
 def get_votes(query: str = None, page: int = 1, page_size: int = 50):
-    """Gives paginated votes list based on query."""
-    # Load all votes from JSON
-    with open(BASE_DIR / 'vote_data.json', encoding='utf-8') as f:
-        data = json.load(f)
-    # Optional filtering
+    """Gibt paginierte Votes-Liste basierend auf optionaler Suche zurück."""
+    data = VOTE_DATA_LIST
     if query:
         data = [v for v in data if query.lower() in v.get("display_title", "").lower()]
     total_votes = len(data)
-    # Pagination slicing
     start = (page - 1) * page_size
     end = start + page_size
     paginated_votes = data[start:end]
     return {"total_votes": total_votes, "votes": paginated_votes}
 
+
 @app.get("/votes/html", response_class=HTMLResponse)
 def get_votes_html(request: Request,
                    page: int = 1,
+                   page_size: int = 50,
                    query: str = None,
                    geo: str = Query(None),
                    start_date: str = Query(None),
                    end_date: str = Query(None),
-                   member_id: int = Query(256971),
-                   show_all: bool = Query(False, description="If true, show all votes without pagination."),
+                   member_id: int = Query(0),
+                   show_all: bool = Query(False, description="If true, show all votes ohne Pagination."),
                    lang: str = Query('de', pattern='^(de|en)$')):
-    # Load all votes
-    all_votes = VOTE_DATA_LIST
-    # --- Robust date parsing for DD-MM-YYYY (TT-MM-JJJJ) to YYYY-MM-DD ---
+    all_votes = VOTE_DATA_LIST.copy()
+
+    # --- Helpers ---
     def parse_ddmmyyyy(date_str):
         if not date_str:
             return None
         try:
-            # Accept both '-' and '.' as separators
             date_str = date_str.replace('.', '-')
-            d = datetime.datetime.strptime(date_str, "%d-%m-%Y")
-            return d.strftime("%Y-%m-%d")
+            d = time.strptime(date_str, "%d-%m-%Y")
+            return time.strftime("%Y-%m-%d", d)
         except Exception:
             return None
 
-    start_date_conv = parse_ddmmyyyy(start_date)
-    end_date_conv = parse_ddmmyyyy(end_date)
-    # Optional filtering (query, geo, date)
-    filtered_votes = []
-    for v in all_votes:
-        if query and query.lower() not in v.get("display_title", "").lower():
-            continue
-        if geo and not any(area.get("code") == geo for area in v.get("geo_areas", [])):
-            continue
-        if start_date_conv and v.get("timestamp", "") < start_date_conv:
-            continue
-        
-        if end_date_conv and v.get("timestamp", "") > end_date_conv:
-            continue
-        filtered_votes.append(v)
-    # Sortiere nach Datum absteigend (neueste zuerst)
-    filtered_votes.sort(key=lambda v: v.get("timestamp", ""), reverse=True)
-    total_votes = len(filtered_votes)
-    votes_per_page = 20
-    if show_all:
-        paginated_votes = filtered_votes
-        total_pages = 1
-        page = 1
-    else:
-        total_pages = (total_votes + votes_per_page - 1) // votes_per_page
-        start = (page - 1) * votes_per_page
-        end = start + votes_per_page
-        paginated_votes = filtered_votes[start:end]
-    # Flatten member_votes for counting total and raw positions
-    mv_all = []
-    for v in all_votes:
-        mv_all.extend(v.get("member_votes", []))
-    # Use full XML-based MEP list for dropdown
-    members = MEPS_LIST
-    # Berechne die Gesamtzahl der abgegebenen Stimmen des ausgewählten Abgeordneten
-    total_member_votes = sum(
-        1 for mv in mv_all
-        if int(mv.get('member', {}).get('id', 0)) == member_id
-        and mv.get('position') in ("FOR", "AGAINST", "ABSTENTION")
-    )
-    # Prüfen, ob Member noch im XML ist
-    if member_id not in MEPS_IDS:
-        member_missing = True
-        sel_member_name = next((mv.get('last_name') for mv in MEMBER_VOTES_LIST
-                                if int(mv.get('member_id', 0)) == member_id), "")
-    else:
-        member_missing = False
-        sel_member_name = ""
-    # Additional selected member info
-    sel_member_info = MEPS_INFO.get(member_id, {})
-    # Add photo_url from vote_data if available
-    photo = None
-    for vote in VOTE_DATA_LIST:
-        for mv in vote.get('member_votes', []):
-            if int(mv.get('member', {}).get('id', 0)) == member_id:
-                photo = mv.get('member', {}).get('photo_url')
-                break
-        if photo:
-            break
-    if photo:
-        sel_member_info['photo_url'] = photo
-
-    # Compute age from date_of_birth if available
-    dob = None
-    for vote in VOTE_DATA_LIST:
-        for mv in vote.get('member_votes', []):
-            if int(mv.get('member', {}).get('id', 0)) == member_id:
-                dob = mv.get('member', {}).get('date_of_birth')
-                break
-        if dob:
-            break
-    if dob:
+    def calculate_age(birthdate_str):
         try:
-            bd = datetime.datetime.strptime(dob, '%Y-%m-%d').date()
-            today = datetime.date.today()
-            age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
-            sel_member_info['age'] = age
+            bd = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
+            today = date.today()
+            return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
         except Exception:
-            pass
+            return None
 
-    # Formatierte Votes mit Position für ausgewähltes Mitglied und Chart-Daten
-    formatted_votes = []
-    for v in paginated_votes:
-        # Verteilung zählen anhand Map
-        counts = {"FOR": 0, "AGAINST": 0, "ABSTENTION": 0, "DID_NOT_VOTE": 0}
-        for mv in v.get("member_votes", []):
-            pos = mv.get("position")
-            if pos in counts:
-                counts[pos] += 1
-        # Find the selected member's vote for this topic directly in this vote's data
-        # Lookup position by nested member.id in each member_vote
-        raw_pos = next(
-            (mv.get("position") for mv in v.get("member_votes", [])
-             if int(mv.get("member", {}).get("id", 0)) == member_id),
-            "DID_NOT_VOTE"
-        )
-        ref = v.get("reference") or ""
-        m = re.match(r"([A-Za-z])(\d+)-(\d+)/(\d+)", ref)
-        if m:
-            link_ref = f"{m.group(1)}-{m.group(2)}-{m.group(4)}-{m.group(3)}"
-        else:
-            link_ref = ref.replace("/", "-")
-        formatted_votes.append({
-            "id": v["id"],
-            "chart_data": counts,
-            "timestamp": ".".join(reversed(v["timestamp"].split("T")[0].split("-"))),
-            "display_title": v["display_title"],
-            "description": v["description"],
-            "reference": v.get("reference"),
-            "geo_areas": v.get("geo_areas", []),
-            "position": raw_pos,  # This is now FOR, AGAINST, ABSTENTION, or DID_NOT_VOTE
-            "document_link": f"https://www.europarl.europa.eu/doceo/document/{link_ref}_EN.html"
-        })
-    shown_votes = len(formatted_votes)
+    # 1) Erzeuge Liste aller Mitglieder für Dropdown
+    members_dict = {}
+    for vote in VOTE_DATA_LIST:
+        for mv in vote.get("member_votes", []):
+            m = mv.get("member", {})
+            m_id = m.get("id")
+            if m_id not in members_dict:
+                full_name = f"{m.get('first_name','')} {m.get('last_name','')}"
+                members_dict[m_id] = full_name
+    members = [{"id": mid, "name": members_dict[mid]} for mid in sorted(members_dict.keys(), key=lambda x: members_dict[x])]
+
+    selected_member_id = member_id or 0
+    sel_member_info = None
+    sel_member_name = ""
+
+    # 2) Wenn ein Mitglied ausgewählt ist, suche dessen Daten (erstes Vorkommen)
+    if selected_member_id:
+        member_data = None
+        for vote in VOTE_DATA_LIST:
+            for mv in vote.get("member_votes", []):
+                m = mv.get("member", {})
+                if m.get("id") == selected_member_id:
+                    member_data = m
+                    break
+            if member_data:
+                break
+        if member_data:
+            # Foto und Land/Fraktion aus member_data
+            photo_url = member_data.get("photo_url", "")
+            country = member_data.get("country", {}).get("label", "")
+            group = member_data.get("group", {}).get("short_label", "")
+            dob = member_data.get("date_of_birth", "")
+            age = calculate_age(dob)
+            sel_member_info = {
+                "photo_url": photo_url,
+                "country": country,
+                "group": group,
+                "age": age,
+            }
+            sel_member_name = f"{member_data.get('first_name','')} {member_data.get('last_name','')}"
+
+        # 3) Setze für jede Abstimmung die Position des ausgewählten Mitglieds
+        for v in all_votes:
+            user_pos = None
+            for mv in v.get("member_votes", []):
+                if mv.get("member", {}).get("id") == selected_member_id:
+                    user_pos = mv.get("position", "")
+                    break
+            v["position"] = user_pos  # Überschreibt das vorherige Ergebnis-Feld
+    # End if selected_member_id
+
+    # Erzeuge Liste aller Länder für Geo-Filter (einmalig aus Rohdaten)
+    geo_labels = set()
+    for v in VOTE_DATA_LIST:
+        for ga in v.get('geo_areas', []):
+            label = ga.get('label')
+            if label:
+                geo_labels.add(label)
+    geo_options = [{'code': lbl, 'label': lbl} for lbl in sorted(geo_labels)]
+
+    # 4) Filter nach geo_areas (kommaseparierte Liste)
+    if geo:
+        geos = geo.split(",")
+        all_votes = [
+            v for v in all_votes
+            if any(g.strip() in [ga.get('label', '') for ga in v.get('geo_areas', [])] for g in geos)
+        ]
+
+    # 5) Filter nach Datum
+    if start_date:
+        sd = parse_ddmmyyyy(start_date)
+        all_votes = [v for v in all_votes if v.get("timestamp", "").split("T")[0] >= sd]
+    if end_date:
+        ed = parse_ddmmyyyy(end_date)
+        all_votes = [v for v in all_votes if v.get("timestamp", "").split("T")[0] <= ed]
+
+    # 6) Filter nach Abgeordneten
+    if selected_member_id:
+        filtered = []
+        for vote in all_votes:
+            for mv in vote.get("member_votes", []):
+                if mv.get("member", {}).get("id") == selected_member_id:
+                    filtered.append(vote)
+                    break
+        all_votes = filtered
+
+    # 7) Optional Suche im Titel/Text
+    if query:
+        all_votes = [v for v in all_votes if query.lower() in v.get("display_title", "").lower()]
+
+    # 8) Berechne Pagination
+    total_votes = len(all_votes)
+    total_pages = (total_votes + page_size - 1) // page_size if page_size else 1
+    last_page = total_pages
+    if not show_all:
+        start = (page - 1) * page_size
+        end = start + page_size
+        all_votes = all_votes[start:end]
+
+    # 9) Wie viele Stimmen hat das Mitglied insgesamt (unabhängig von Filter)?
+    total_member_votes = 0
+    if selected_member_id:
+        for v in VOTE_DATA_LIST:
+            for mv in v.get("member_votes", []):
+                if mv.get("member", {}).get("id") == selected_member_id:
+                    total_member_votes += 1
+                    break
+
+    # Bereitstellung der Übersetzungstexte
     texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
-    # Erstelle Liste aller Geo-Areas für Filter-Dropdown
-    geo_set = { (area.get('code'), area.get('label')) for v in all_votes for area in v.get('geo_areas', []) }
-    geo_options = [ {'code': code, 'label': label} for code, label in sorted(geo_set, key=lambda x: x[1]) ]
+
     return templates.TemplateResponse("votes.html", {
         "request": request,
-        "query": query or "",
-        "start_date": start_date,
-        "end_date": end_date,
-        "geo": geo,
-        "votes": formatted_votes,
+        "votes": all_votes,
         "page": page,
-        "total_pages": total_pages,
-        "show_all": show_all,
+        "page_size": page_size,
         "total_votes": total_votes,
-        "shown_votes": shown_votes,
-        "members": members,
-        "selected_member_id": member_id,
-        "member_missing": member_missing,
-        "sel_member_name": sel_member_name,
-        "lang": lang,
-        "texts": texts,
-        "total_member_votes": total_member_votes,
-        "current_date": datetime.date.today().strftime("%Y-%m-%d"),
+        "total_pages": total_pages,
+        "last_page": last_page,
+        "query": query or "",
+        "geo": geo or "",
+        "start_date": start_date or "",
+        "end_date": end_date or "",
+        "selected_member_id": selected_member_id,
         "sel_member_info": sel_member_info,
-        "geo_options": geo_options,
+        "sel_member_name": sel_member_name,
+        "members": members,
+        "show_all": show_all,
+        "lang": lang,
+        "MEPS_LIST": MEPS_LIST,
+        "total_member_votes": total_member_votes,
+        "texts": texts,
+        "geo_options": geo_options
     })
 
+
 @app.get("/votes/detail/{vote_id}", response_class=HTMLResponse)
-def vote_detail(request: Request, vote_id: int, lang: str = Query('de', regex='^(de|en)$')):
-    # Find the vote in memory
-    vote = next((item for item in VOTE_DATA_LIST if int(item.get('id', 0)) == vote_id), None)
+def get_vote_detail(request: Request, vote_id: int, lang: str = Query('de', pattern='^(de|en)$')):
+    """Detailseite für einen einzelnen Vote."""
+    vote = next((v for v in VOTE_DATA_LIST if int(v.get("id", 0)) == vote_id), None)
     if not vote:
-        return HTMLResponse(f"<h1>Vote {vote_id} not found</h1>", status_code=404)
-    # Group member votes by faction short_label
-    faction_map = {}
-    for mv in vote.get('member_votes', []):
-        # Extract faction short_label from nested member object
-        member = mv.get('member', {})
-        faction = member.get('short_label') or 'Unknown'
-        pos = mv.get('position')
-        if faction not in faction_map:
-            faction_map[faction] = { 'FOR':0, 'AGAINST':0, 'ABSTENTION':0, 'DID_NOT_VOTE':0 }
-        if pos in faction_map[faction]:
-            faction_map[faction][pos] += 1
-    # Prepare data for template
-    texts = LANG_TEXTS.get(lang, LANG_TEXTS['de'])
-    # Attach member count to each group by matching JSON group label or short_label in XML-based MEP_INFO
-    for grp in vote.get('stats', {}).get('by_group', []):
-        # Normalize JSON label to match XML text
-        grp_label = grp.get('group', {}).get('label', '').replace('’', "'")
-        short_lbl = grp.get('group', {}).get('short_label', '')
-        # Count MEPs whose XML group string contains either label or short label
-        count = sum(
-            1
-            for info in MEPS_INFO.values()
-            if grp_label and grp_label in info.get('group', '')
-               or short_lbl and short_lbl in info.get('group', '')
-        )
-        grp['members'] = count
-    # Compute document link for opening in detail view
-    ref = vote.get('reference') or ''
-    m = re.match(r"([A-Za-z])(\d+)-(\d+)/(\d+)", ref)
-    if m:
-        link_ref = f"{m.group(1)}-{m.group(2)}-{m.group(4)}-{m.group(3)}"
-    else:
-        link_ref = ref.replace('/', '-')
-    vote['document_link'] = f"https://www.europarl.europa.eu/doceo/document/{link_ref}_EN.html"
+        return {"error": "Vote nicht gefunden."}
+
+    stats = vote.get("stats", {})
+    by_group = stats.get("by_group", [])
+    by_country = stats.get("by_country", [])
+    member_votes = vote.get("member_votes", [])
+
     return templates.TemplateResponse("detail.html", {
         "request": request,
         "vote": vote,
-        "lang": lang,
-        "texts": texts,
+        "by_group": by_group,
+        "by_country": by_country,
+        "member_votes": member_votes,
+        "lang": lang
     })
+
 
 @app.get("/votes/search")
 def search_votes(q: str = Query(..., min_length=1)):
-    session = SessionLocal()
-    results = session.query(Vote).filter(Vote.display_title.ilike(f"%{q}%")).all()
-    session.close()
+    """Suche nach Votes basierend auf Titel."""
+    data = VOTE_DATA_LIST
+    results = [v for v in data if q.lower() in v.get("display_title", "").lower()]
+    return results
 
-    return [
-        {
-            "id": v.id,
-            "timestamp": v.timestamp,
-            "title": v.display_title,
-            "description": v.description,
-            "reference": v.reference,
-            "geo_areas": v.geo_areas,
-            "position": v.position
-        } for v in results
-    ]
 
 @app.get("/members/search")
 def search_members(last_name: str = Query(..., min_length=1)):
     """Suche nach Abgeordneten basierend auf ihrem Nachnamen."""
     data = VOTE_DATA_LIST
-
     members = []
     for vote in data:
-        for member_vote in vote.get("member_votes", []):
-            member = member_vote.get("member", {})
+        for mv in vote.get("member_votes", []):
+            member = mv.get("member", {})
             if last_name.lower() in member.get("last_name", "").lower():
                 members.append(member)
-
     return members
+
 
 @app.get("/members")
 def get_all_members():
     """Gibt eine Liste aller Abgeordneten zurück."""
     data = VOTE_DATA_LIST
-
-    members = {}
+    members_dict = {}
     for vote in data:
-        for member_vote in vote.get("member_votes", []):
-            member = member_vote.get("member", {})
-            member_id = member.get("id")
-            if member_id not in members:
-                members[member_id] = {
-                    "id": member_id,
-                    "name": member.get("name"),
-                    "faction": member.get("faction")
-                }
+        for mv in vote.get("member_votes", []):
+            m = mv.get("member", {})
+            members_dict[m.get("id")] = {
+                "id": m.get("id"),
+                "first_name": m.get("first_name"),
+                "last_name": m.get("last_name"),
+                "country": m.get("country", {}).get("label"),
+                "group": m.get("group", {}).get("short_label")
+            }
+    return list(members_dict.values())
 
-    return list(members.values())
 
-# Initialize Socket.IO
-socket_manager = SocketManager(app)
-
-@app.sio.on("connect")
-async def connect(sid, environ):
-    print(f"Client connected: {sid}")
-
-@app.sio.on("message")
-async def message(sid, data):
-    print(f"Message from {sid}: {data}")
-    await app.sio.emit("response", {"message": "Message received!"})
-
-@app.sio.on("disconnect")
-async def disconnect(sid):
-    print(f"Client disconnected: {sid}")
-
-# Optional Scrapy imports
-try:
-    from scrapy import Spider  # type: ignore
-    from scrapy.crawler import CrawlerProcess  # type: ignore
-    SCRAPY_AVAILABLE = True
-except ImportError:
-    SCRAPY_AVAILABLE = False
-
-# Scrape document route only if Scrapy is available
-if SCRAPY_AVAILABLE:
-    class DocumentSpider(Spider):
+@app.get("/scrape_document")
+def scrape_document(reference: str, background_tasks: BackgroundTasks):
+    """Starts a Scrapy crawler to find a document by reference."""
+    class DocumentSpider:
         name = "document_spider"
+        def __init__(self, reference):
+            self.reference = reference
 
-        def __init__(self, reference, *args, **kwargs):
-            super(DocumentSpider, self).__init__(*args, **kwargs)
-            self.start_urls = [f"https://www.europarl.europa.eu/search?q={reference}"]
+        def start_requests(self):
+            url = f"https://www.europarl.europa.eu/search?reference={urllib.parse.quote(self.reference)}"
+            yield requests.Request(url, callback=self.parse)
 
         def parse(self, response):
             for link in response.css('a::attr(href)').getall():
                 if "europarl.europa.eu" in link and link.endswith(".pdf"):
                     yield {"document_link": response.urljoin(link)}
 
-    @app.get("/scrape_document")
-    def scrape_document(reference: str, background_tasks: BackgroundTasks):
-        """Starts a Scrapy crawler to find a document by reference."""
-        def run_spider():
-            process = CrawlerProcess(settings={
-                "FEEDS": {"output.json": {"format": "json"}},
-            })
-            process.crawl(DocumentSpider, reference=reference)
-            process.start()
+    def run_spider():
+        from scrapy.crawler import CrawlerProcess
+        process = CrawlerProcess(settings={
+            "FEEDS": {"output.json": {"format": "json"}},
+        })
+        process.crawl(DocumentSpider, reference=reference)
+        process.start()
 
-        background_tasks.add_task(run_spider)
-        return {"message": "Scraping started. Results will be saved in 'output.json'."}
-else:
-    @app.get("/scrape_document")
-    def scrape_document_unavailable():
-        return {"error": "Scrapy is not available. Please install Scrapy to enable scraping."}
+    background_tasks.add_task(run_spider)
+    return {"status": "Crawler gestartet"}
+
+
+@app.get("/document_unavailable")
+def scrape_document_unavailable():
+    return {"error": "Scrapy is nicht verfügbar. Bitte installiere Scrapy, um das Scraping zu aktivieren."}
+
 
 if __name__ == "__main__":
-    # Run with uvicorn if available
     try:
         import uvicorn  # type: ignore
         uvicorn.run(app, host="127.0.0.1", port=8000)
     except ImportError:
-        print("Uvicorn is not installed. Please install uvicorn to run the server.")
-
+        print("Uvicorn ist nicht installiert. Bitte installiere uvicorn, um den Server zu starten.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Ein Fehler ist aufgetreten: {e}")
     finally:
-        print("Server stopped.")
+        print("Server gestoppt.")

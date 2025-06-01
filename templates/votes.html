@@ -321,7 +321,8 @@
                 <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                     <div class="card-body text-center">
                         <h6 class="text-muted vote-meta mb-1">
-                            {{ v.timestamp }}
+                            {% set dt = v.timestamp.split('T')[0].split('-') %}
+                            {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}
                             {% if v.geo_areas %}
                                 {% for area in v.geo_areas %}
                                     <a href="/votes/html?geo={{ area.code }}{% if query %}&query={{ query }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&member_id={{ selected_member_id }}&lang={{ lang }}{% if show_all %}&show_all=true{% endif %}"
@@ -361,7 +362,7 @@
                                         style="width:40px; height:40px; max-width:40px; max-height:40px;"
                                       ></canvas>
                                       <div class="d-flex flex-column ms-2 align-items-start">
-                                        <div class="small fw-bold">{{ texts['my_position'] }}: {{ labels[i] }}</div>
+                                        <div class="small fw-bold">{{ texts.my_position }}: {{ labels[i] }}</div>
                                         <div class="small text-muted">{{ chart_data[i] }}</div>
                                       </div>
                                     </div>
@@ -469,12 +470,17 @@
                       var d = chart.data.datasets[0].data;
                       var lbls = chart.data.labels;
                       var maxIdx = d.indexOf(Math.max.apply(null,d));
-                      var text = lbls[maxIdx] + ': ' + d[maxIdx];
+                      var label = lbls[maxIdx];
+                      var value = d[maxIdx];
                       ctx.save();
-                      ctx.textAlign='center';
-                      ctx.textBaseline='middle';
-                      ctx.font='bold 1.5em sans-serif';
-                      ctx.fillText(text, chart.width/2, chart.height/2);
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'middle';
+                      // Kategorie oberhalb
+                      ctx.font = 'bold 1.2em sans-serif';
+                      ctx.fillText(label, chart.width/2, chart.height/2 - 10);
+                      // Wert darunter
+                      ctx.font = '1em sans-serif';
+                      ctx.fillText(value, chart.width/2, chart.height/2 + 10);
                       ctx.restore();
                   }
               }]
@@ -499,6 +505,47 @@
               options: { cutout: '80%', plugins: { legend: { display: false } } }
           });
       });
+      // Init Member Abstimmungsverhalten Chart
+      var memberChartCtx = document.getElementById('member-chart');
+      if (memberChartCtx) {
+          var mf = +memberChartCtx.dataset.for;
+          var ma = +memberChartCtx.dataset.against;
+          var mab = +memberChartCtx.dataset.abstention;
+          var mnv = +memberChartCtx.dataset.novote;
+          var memberData = [mf,ma,mab,mnv];
+          var memberLabels = ["{{ texts.for_label }}", "{{ texts.against_label }}", "{{ texts.abstention_label }}", "{{ texts.did_not_vote_label }}"];
+          new Chart(memberChartCtx, {
+              type:'doughnut',
+              data:{ labels:memberLabels, datasets:[{ data:memberData, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
+              options:{
+                  responsive:true,
+                  maintainAspectRatio:false,
+                  cutout:'60%',
+                  plugins:{ legend:{ display:false }, tooltip:{} }
+              },
+              plugins:[{
+                  id:'centerText',
+                  afterDraw:function(chart){
+                      var ctx = chart.ctx;
+                      var d = chart.data.datasets[0].data;
+                      var lbls = chart.data.labels;
+                      var maxIdx = d.indexOf(Math.max.apply(null,d));
+                      var label = lbls[maxIdx];
+                      var value = d[maxIdx];
+                      ctx.save();
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'middle';
+                      // Kategorie oberhalb
+                      ctx.font = 'bold 1.2em sans-serif';
+                      ctx.fillText(label, chart.width/2, chart.height/2 - 10);
+                      // Wert darunter
+                      ctx.font = '1em sans-serif';
+                      ctx.fillText(value, chart.width/2, chart.height/2 + 10);
+                      ctx.restore();
+                  }
+              }]
+          });
+      }
     });
     flatpickr("#start_date", {
         dateFormat: "d.m.Y",

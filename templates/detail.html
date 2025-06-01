@@ -15,6 +15,22 @@
             margin: 0 auto;
         }
         .membership-chart { width: 150px; height: 150px; margin: 0 auto; }
+        .chart-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 0 auto;
+        }
+        .chart-center-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
@@ -33,6 +49,10 @@
         <p class="text-muted text-center">{{ vote.description }}</p>
         <div class="text-center mb-4">
             <a href="{{ vote.document_link }}" class="btn btn-sm" style="background-color:#f2aa3c; color:#000;">{{ texts.open_document }}</a>
+        </div>
+        <!-- Warning banner -->
+        <div class="alert alert-warning" role="alert">
+          {{ texts.detail_banner_message }}
         </div>
         <!-- Per-faction vote distribution -->
         <div class="row g-4 justify-content-center">
@@ -91,12 +111,31 @@
                     ctx.fillText(members.toString(), x, y - 8);
                     // Draw label
                     ctx.font = '0.8em sans-serif';
-                    ctx.fillText('Mitglieder', x, y + 8);
+                    ctx.fillText('{{ texts.members_label }}', x, y + 8);
                     ctx.restore();
                 }
             }]
         });
     });
-     </script>
+    // Group vote distribution charts
+    (function(){
+        var voteGroups = {{ vote_groups|tojson }};
+        var t = { yes: '{{ texts.yes_label }}', no: '{{ texts.no_label }}', abstain: '{{ texts.abstain_label }}' };
+        Object.keys(voteGroups).forEach(function(group){
+            var votes = voteGroups[group];
+            var c = document.getElementById('chart-' + group);
+            if (!c) return;
+            var ctx = c.getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: [t.yes, t.no, t.abstain],
+                    datasets: [{ data: [votes.yes, votes.no, votes.abstain], backgroundColor: ['#7AB800','#D0006F','#00C1F0'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: true, position: 'bottom' } } }
+            });
+        });
+    })();
+    </script>
  </body>
  </html>
