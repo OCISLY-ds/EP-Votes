@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <!-- Select2 CSS for searchable dropdown -->
+    <!-- Select2 CSS für durchsuchbares Dropdown -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -22,33 +22,26 @@
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
-        /* Remove outline on buttons/inputs for better perf */
         button, input, select {
           outline: none;
         }
-        /* Reduce box-shadow repaints */
         .card, .member-donut-highlight-box {
           will-change: box-shadow;
         }
-        /* Use transform for GPU acceleration on cards */
         .card {
           transform: translateZ(0);
         }
-        /* Optimize image rendering if any */
         img {
           image-rendering: auto;
           max-width: 100%;
           height: auto;
         }
-        /* Reduce CSS selector complexity for perf */
         .d-flex, .flex-column, .flex-row, .align-items-center, .align-items-start, .justify-content-center, .justify-content-start, .gap-2, .gap-3 {
           will-change: auto;
         }
-        /* Optimize transitions */
         * {
           transition: none !important;
         }
-        /* Hide scrollbars for perf */
         ::-webkit-scrollbar {
           width: 8px;
           background: #f0f0f0;
@@ -59,25 +52,21 @@
         }
         .voting-header { background: #FFA600; color: white; padding: 2rem 0; text-align:center; }
         .voting-header h1 { margin:0; font-size:2rem; }
-        /* Constrain logo height to avoid overstretching header */
         .voting-header img {
-          height: 6.5rem; /* 50% larger logo height */
-           width: auto;
-           object-fit: contain;
+          height: 6.5rem;
+          width: auto;
+          object-fit: contain;
         }
         .filter-bar { background:#f0f4f8; padding:1rem; margin-bottom:1rem; border-radius:0.25rem; }
         .voting-table th { background:#e1e5ea; }
         .vote-title {
             font-size: 1.25rem;
             font-weight: bold;
-        }
-        /* Clamp vote titles to 3 lines */
-        .vote-title {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
         .vote-meta {
             color: #666;
@@ -92,7 +81,6 @@
           margin-bottom: 2px;
           position: relative;
         }
-        /* From Uiverse.io by Nawsome */
         .loadingspinner {
           --square: 26px;
           --offset: 30px;
@@ -199,6 +187,49 @@
           0% { transform: scale(0.75); opacity: 0.0; }
           100% { transform: scale(1.0); opacity: 1.0; }
         }
+        /* Wrapper um #votes-container für Scroll-Pfeile */ 
+        .votes-wrapper {
+            position: relative;
+        }
+        #votes-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+        #votes-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        #votes-container::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+        /* Nur rechter Scroll-Pfeil, an den Rand heran */ 
+        .scroll-arrows {
+            position: fixed;
+            right: 1rem;   /* statt right: 0 innerhalb des Wrappers */
+            top: calc(2rem + 1rem); /* Höhe knapp unterhalb des Language‐Switchers */
+            transform: translateY(0);
+            pointer-events: none;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .scroll-arrows button {
+            background: #FFA600;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            pointer-events: auto;
+        }
+        .scroll-arrows button:hover {
+            background: #e59400;
+        }
+        .filter-bar {
+            max-width: 1200px; /* Make the filter bar significantly wider */
+            margin: 0 auto; /* Center the filter bar */
+        }
     </style>
 </head>
 <body class="bg-[#fcfbf8] min-h-screen">
@@ -211,28 +242,27 @@
       <div id="square5"></div>
     </div>
     <div class="voting-header position-relative">
-        <!-- Language switcher inside header -->
+        <!-- Sprachenselector oben rechts -->
         <div class="position-absolute top-0 end-0 p-3">
             <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
             <a href="?lang=en&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
         </div>
         <div class="container flex flex-wrap items-center justify-between gap-2">
-            <!-- Logo and title -->
+            <!-- Logo und Titel -->
             <div class="d-flex align-items-center">
               <a href="https://partei-des-fortschritts.de/" target="_blank" rel="noopener">
                 <img src="/static/icon2.png" alt="Logo" class="me-3" />
               </a>
-               <h1 class="mb-0">{{ texts.votes_title }}</h1>
+              <h1 class="mb-0">{{ texts.votes_title }}</h1>
             </div>
             <form method="get" action="/votes/html" class="flex items-center gap-2">
-                 <!-- Member select dropdown -->
+                 <!-- Member‐Select -->
                  <select id="member_id" name="member_id" class="form-select member-select" style="width:100%;" onchange="this.form.submit()">
                    <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
                   {% for member in members %}
                   <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.name }}</option>
                   {% endfor %}
                 </select>
-                <!-- Preserve other filters -->
                 <input type="hidden" name="lang" value="{{ lang }}">
                 <input type="hidden" name="query" value="{{ query }}">
                 <input type="hidden" name="geo" value="{{ geo }}">
@@ -297,10 +327,18 @@
                         {% endfor %}
                     </select>
                 </div>
+                <!-- Sortierung Dropdown: direkt im GET-Request, kein JS-Fetch mehr --> 
+                <div class="col-md-2">
+                    <label for="sort-order" class="form-label">Sortierung</label>
+                    <select id="sort-order" name="sort-order" class="form-select form-select-sm" onchange="this.form.submit()"> <!-- GECHECKT -->
+                        <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>Neueste zuerst</option>
+                        <option value="asc" {% if sort_order=='asc' %}selected{% endif %}>Älteste zuerst</option>
+                    </select>
+                </div>
                 <div class="col-md-1 text-end">
                     <button type="submit" class="btn btn-primary w-100">{{ texts.search }}</button>
                 </div>
-                <!-- Preserve member selection and view mode -->
+                <!-- Preserve member selection und view mode -->
                 <input type="hidden" name="member_id" value="{{ selected_member_id }}">
                 <input type="hidden" name="lang" value="{{ lang }}">
                 {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
@@ -311,93 +349,96 @@
             Der Abgeordnete {{ sel_member_name }} ist nicht mehr Mitglied des Parlaments.
         </div>
         {% endif %}
-        <!-- Ergebnisse-Tabelle -->
-        <div id="votes-container" class="d-flex flex-nowrap overflow-auto pb-3">
-            {% if not votes %}
-            <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
-            {% else %}
-            {% for v in votes %}
-            <div class="flex-shrink-0 me-4">
-                <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                    <div class="card-body text-center">
-                        <h6 class="text-muted vote-meta mb-1">
-                            {% set dt = v.timestamp.split('T')[0].split('-') %}
-                            {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}
-                            {% if v.geo_areas %}
-                                {% for area in v.geo_areas %}
-                                    <a href="/votes/html?geo={{ area.code }}{% if query %}&query={{ query }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&member_id={{ selected_member_id }}&lang={{ lang }}{% if show_all %}&show_all=true{% endif %}"
-                                       class="badge bg-secondary text-decoration-none">{{ area.label }}</a>
-                                {% endfor %}
-                            {% endif %}
-                        </h6>
-                        <h5 class="card-title vote-title mb-3 text-wrap" style="white-space: normal; word-break: break-word;">
-                            <a href="/votes/detail/{{ v.id }}?lang={{ lang }}" class="text-decoration-none text-dark">{{ v.display_title }}</a>
-                        </h5>
-                        <div class="d-flex justify-content-between align-items-start w-100 mt-3">
-                            <!-- Großer Donut -->
-                            <div class="flex-shrink-0" style="width:50%;">
-                                <canvas id="chart-{{ loop.index0 }}" width="200" height="200" class="d-block mx-auto"
-                                        data-for="{{ v.chart_data.FOR }}"
-                                        data-against="{{ v.chart_data.AGAINST }}"
-                                        data-abstention="{{ v.chart_data.ABSTENTION }}"
-                                        data-novote="{{ v.chart_data.DID_NOT_VOTE }}"></canvas>
-                            </div>
-                            <!-- Kategorien mit Mini-Donuts und Meine Position Box -->
-                            <div class="d-flex flex-column justify-content-start gap-3" style="width:45%;">
-                                {% set labels = [texts.for_label, texts.against_label, texts.abstention_label, texts.did_not_vote_label] %}
-                                {% set colors = ['#4caf50', '#f44336', '#ff9800', '#9e9e9e'] %}
-                                {% set chart_data = [v.chart_data.FOR, v.chart_data.AGAINST, v.chart_data.ABSTENTION, v.chart_data.DID_NOT_VOTE] %}
-                                {% set pos_map = {'FOR': 0, 'AGAINST': 1, 'ABSTENTION': 2, 'DID_NOT_VOTE': 3} %}
-                                {% set user_pos = v.position %}
-                                <div class="d-flex flex-column justify-content-center align-items-start gap-2">
-                                  {% set pos_idx = pos_map.get(user_pos) %}
-                                  {% for i in range(4) %}
-                                    {% if i == pos_idx %}
-                                    <div class="d-flex flex-row align-items-center member-donut-highlight-box bg-warning bg-opacity-25 rounded px-2 py-1" style="border: 2px solid #f2aa3c;">
-                                      <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
-                                        data-value="{{ chart_data[i] }}"
-                                        data-total="{{ chart_data|sum }}"
-                                        data-label="{{ labels[i] }}"
-                                        data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
-                                        style="width:40px; height:40px; max-width:40px; max-height:40px;"
-                                      ></canvas>
-                                      <div class="d-flex flex-column ms-2 align-items-start">
-                                        <div class="small fw-bold">{{ texts.my_position }}: {{ labels[i] }}</div>
-                                        <div class="small text-muted">{{ chart_data[i] }}</div>
-                                      </div>
+        <!-- Ergebnisse-Tabelle mit Wrapper für Scroll-Pfeile -->
+        <div class="votes-wrapper">
+            <div id="votes-container" class="d-flex flex-nowrap overflow-auto pb-3">
+                {% if not votes %}
+                <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
+                {% else %}
+                {% for v in votes %}
+                <div class="flex-shrink-0 me-4">
+                    <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted vote-meta mb-1">
+                                {% set dt = v.timestamp.split('T')[0].split('-') %}
+                                {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}
+                                {% if v.geo_areas %}
+                                    {% for area in v.geo_areas %}
+                                        <a href="/votes/html?geo={{ area.code }}{% if query %}&query={{ query }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&member_id={{ selected_member_id }}&lang={{ lang }}{% if show_all %}&show_all=true{% endif %}"
+                                           class="badge bg-secondary text-decoration-none">{{ area.label }}</a>
+                                    {% endfor %}
+                                {% endif %}
+                            </h6>
+                            <h5 class="card-title vote-title mb-3 text-wrap" style="white-space: normal; word-break: break-word;">
+                                <a href="/votes/detail/{{ v.id }}?lang={{ lang }}" class="text-decoration-none text-dark">{{ v.display_title }}</a>
+                            </h5>
+                            <div class="d-flex justify-content-between align-items-start w-100 mt-3">
+                                <!-- Großer Donut -->
+                                <div class="flex-shrink-0" style="width:50%;">
+                                    <canvas id="chart-{{ loop.index0 }}" width="200" height="200" class="d-block mx-auto"
+                                            data-for="{{ v.chart_data.FOR }}"
+                                            data-against="{{ v.chart_data.AGAINST }}"
+                                            data-abstention="{{ v.chart_data.ABSTENTION }}"
+                                            data-novote="{{ v.chart_data.DID_NOT_VOTE }}"></canvas>
+                                </div>
+                                <!-- Kategorien mit Mini-Donuts -->
+                                <div class="d-flex flex-column justify-content-start gap-3" style="width:45%;">
+                                    {% set labels = [texts.for_label, texts.against_label, texts.abstention_label, texts.did_not_vote_label] %}
+                                    {% set chart_data = [v.chart_data.FOR, v.chart_data.AGAINST, v.chart_data.ABSTENTION, v.chart_data.DID_NOT_VOTE] %}
+                                    {% set pos_map = {'FOR': 0, 'AGAINST': 1, 'ABSTENTION': 2, 'DID_NOT_VOTE': 3} %}
+                                    {% set user_pos = v.position %}
+                                    <div class="d-flex flex-column justify-content-center align-items-start gap-2">
+                                      {% set pos_idx = pos_map.get(user_pos) %}
+                                      {% for i in range(4) %}
+                                        {% if i == pos_idx %}
+                                        <div class="d-flex flex-row align-items-center member-donut-highlight-box bg-warning bg-opacity-25 rounded px-2 py-1" style="border: 2px solid #f2aa3c;">
+                                          <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
+                                            data-value="{{ chart_data[i] }}"
+                                            data-total="{{ chart_data|sum }}"
+                                            data-label="{{ labels[i] }}"
+                                            data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
+                                            style="width:40px; height:40px; max-width:40px; max-height:40px;"
+                                          ></canvas>
+                                          <div class="d-flex flex-column ms-2 align-items-start">
+                                            <div class="small fw-bold">{{ texts.my_position }}: {{ labels[i] }}</div>
+                                            <div class="small text-muted">{{ chart_data[i] }}</div>
+                                          </div>
+                                        </div>
+                                        {% else %}
+                                        <div class="d-flex flex-row align-items-center" style="min-height:60px;">
+                                          <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
+                                            data-value="{{ chart_data[i] }}"
+                                            data-total="{{ chart_data|sum }}"
+                                            data-label="{{ labels[i] }}"
+                                            data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
+                                            style="width:40px; height:40px; max-width:40px; max-height:40px;"
+                                          ></canvas>
+                                          <div class="d-flex flex-column ms-2 align-items-start">
+                                            <div class="small">{{ labels[i] }}</div>
+                                            <div class="small text-muted">{{ chart_data[i] }}</div>
+                                          </div>
+                                        </div>
+                                        {% endif %}
+                                      {% endfor %}
                                     </div>
-                                    {% else %}
-                                    <div class="d-flex flex-row align-items-center" style="min-height:60px;">
-                                      <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
-                                        data-value="{{ chart_data[i] }}"
-                                        data-total="{{ chart_data|sum }}"
-                                        data-label="{{ labels[i] }}"
-                                        data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
-                                        style="width:40px; height:40px; max-width:40px; max-height:40px;"
-                                      ></canvas>
-                                      <div class="d-flex flex-column ms-2 align-items-start">
-                                        <div class="small">{{ labels[i] }}</div>
-                                        <div class="small text-muted">{{ chart_data[i] }}</div>
-                                      </div>
-                                    </div>
-                                    {% endif %}
-                                  {% endfor %}
                                 </div>
                             </div>
+                            <p class="mt-3 small text-muted">Reference: {{ v.reference }}</p>
                         </div>
-                        <p class="mt-3 small text-muted">{{ v.description }}</p>
-                        <a href="{{ v.document_link }}" class="btn btn-sm" style="background-color:#f2aa3c; color:#000;">{{ texts.open_document }}</a>
                     </div>
                 </div>
+                {% endfor %}
+                {% endif %}
             </div>
-            {% endfor %}
-            {% endif %}
+
+            <!-- Nur rechter Scroll-Pfeil, näher an der rechten Kante -->
+            <div class="scroll-arrows">
+                <button onclick="scrollRight()">→</button> <!-- GECHECKT -->
+            </div>
         </div>
-        <!-- Anzeige der derzeit gezeigten und Gesamt-Votes -->
         <div class="mt-3 text-center">
             <p class="mb-1">{{ texts.shown_of.format(shown=shown_votes, total=total_votes) }}</p>
         </div>
-        <!-- Toggle Alle/Seitenweise -->
         <div class="mb-3 text-center">
             {% if not show_all %}
             <a href="?show_all=true&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">{{ texts.show_all }}</a>
@@ -405,7 +446,6 @@
             <a href="?show_all=false&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-secondary">{{ texts.paginated }}</a>
             {% endif %}
         </div>
-        <!-- Pagination -->
         <nav aria-label="{{ texts.page }}-Navigation">
             <ul class="pagination justify-content-center">
                 {% set window = 2 %}
@@ -415,38 +455,34 @@
                 {% set end_page = page + window if page + window < last_page else last_page %}
                 <li class="page-item disabled"><span class="page-link">{{ texts.page }} {{ page }} / {{ total_pages }}</span></li>
                 {% if start_page > first_page %}
-                    <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{first_page}}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{first_page}}</a></li>
                     {% if start_page > first_page + 1 %}
                         <li class="page-item disabled"><span class="page-link">…</span></li>
                     {% endif %}
                 {% endif %}
                 {% for i in range(start_page, end_page+1) %}
-                    <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{i}}</a></li>
+                    <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{i}}</a></li>
                 {% endfor %}
                 {% if end_page < last_page %}
                     {% if end_page < last_page - 1 %}
                         <li class="page-item disabled"><span class="page-link">…</span></li>
                     {% endif %}
-                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_memberId}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{last_page}}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{last_page}}</a></li>
                 {% endif %}
             </ul>
         </nav>
-        <!-- Remove the global member-donut-box at the bottom -->
     </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script>
-    // Ladeanimation anzeigen, bis Seite fertig geladen
     document.getElementById('loader').style.display = 'block';
     document.getElementById('main-content').style.opacity = '0.3';
     window.addEventListener('DOMContentLoaded', function() {
       document.getElementById('loader').style.display = 'none';
       document.getElementById('main-content').style.opacity = '1';
     });
-    // Chart.js: Defer rendering for smoother UX
     window.addEventListener('DOMContentLoaded', function() {
-      // Init Haupt-Charts mit Center-Text and ohne Legende
       document.querySelectorAll('canvas[id^="chart-"]').forEach(function(c){
           var f = +c.dataset.for;
           var a = +c.dataset.against;
@@ -475,10 +511,8 @@
                       ctx.save();
                       ctx.textAlign = 'center';
                       ctx.textBaseline = 'middle';
-                      // Kategorie oberhalb
                       ctx.font = 'bold 1.2em sans-serif';
                       ctx.fillText(label, chart.width/2, chart.height/2 - 10);
-                      // Wert darunter
                       ctx.font = '1em sans-serif';
                       ctx.fillText(value, chart.width/2, chart.height/2 + 10);
                       ctx.restore();
@@ -486,7 +520,6 @@
               }]
           });
       });
-      // Init Mini-Charts (rechts neben großem Donut)
       document.querySelectorAll('canvas[id^="mini-donut-"]').forEach(function(c) {
           var value = parseInt(c.dataset.value, 10);
           var total = parseInt(c.dataset.total, 10);
@@ -505,7 +538,6 @@
               options: { cutout: '80%', plugins: { legend: { display: false } } }
           });
       });
-      // Init Member Abstimmungsverhalten Chart
       var memberChartCtx = document.getElementById('member-chart');
       if (memberChartCtx) {
           var mf = +memberChartCtx.dataset.for;
@@ -535,10 +567,8 @@
                       ctx.save();
                       ctx.textAlign = 'center';
                       ctx.textBaseline = 'middle';
-                      // Kategorie oberhalb
                       ctx.font = 'bold 1.2em sans-serif';
                       ctx.fillText(label, chart.width/2, chart.height/2 - 10);
-                      // Wert darunter
                       ctx.font = '1em sans-serif';
                       ctx.fillText(value, chart.width/2, chart.height/2 + 10);
                       ctx.restore();
@@ -552,8 +582,7 @@
         allowInput: true,
         locale: "de",
         maxDate: document.getElementById('end_date').value || undefined,
-        onChange: function(selectedDates, dateStr, instance) {
-            // Set maxDate for end_date
+        onChange: function(selectedDates, dateStr) {
             endPicker.set('minDate', dateStr);
         }
     });
@@ -563,34 +592,32 @@
         locale: "de",
         minDate: document.getElementById('start_date').value || undefined,
         maxDate: "25.05.2025",
-        onChange: function(selectedDates, dateStr, instance) {
-            // Set minDate for start_date
+        onChange: function(selectedDates, dateStr) {
             startPicker.set('maxDate', dateStr);
         }
     });
     var startPicker = flatpickr.instances.find(i => i.input.id === 'start_date');
     </script>
     <script>
-      // Initialize Select2 on member dropdown for search
+      // Select2 initialisieren
       $(document).ready(function() {
         $('#member_id').select2({
           placeholder: '{{ texts.member }} auswählen...',
           allowClear: true,
           width: 'resolve'
         });
-        // auto-submit on change
         $('#member_id').on('change', function() {
           $(this).closest('form').submit();
         });
       });
     </script>
     <script>
-      // Keyboard navigation for vote cards container
+      // Keyboard-Navigation für Votes-Container
       (function() {
         var container = document.getElementById('votes-container');
         document.addEventListener('keydown', function(e) {
           if (!container) return;
-          var scrollAmount = container.clientWidth * 0.8;
+          var scrollAmount = Math.floor(container.clientWidth * 0.8);
           if (e.key === 'ArrowRight') {
             container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
           } else if (e.key === 'ArrowLeft') {
@@ -599,5 +626,23 @@
         });
       })();
     </script>
+    <script>
+        // Nur rechter Scroll-Pfeil, um 80% der Breite scrollen
+        function scrollRight() {
+            const container = document.getElementById('votes-container');
+            const amount = Math.floor(container.clientWidth * 0.8);
+            container.scrollBy({ left: amount, behavior: 'smooth' });
+        }
+    </script>
+    <!-- Bootstrap JS Bundle (für Select2 und andere Komponenten) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <footer style="text-align: center; margin-top: 2rem; font-size: 0.9rem;">
+      <p>
+          This project is open source. View the source code on 
+          <a href="https://github.com/HowTheyVote/howtheyvote" target="_blank" rel="noopener noreferrer">GitHub</a>.
+          Licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">AGPL-3.0 license</a>.
+      </p>
+    </footer>
 </body>
 </html>

@@ -4,6 +4,7 @@ import re
 import json
 from fastapi import FastAPI
 from pathlib import Path
+import datetime
 
 app = FastAPI()
 BASE_DIR = Path(__file__).parent
@@ -11,7 +12,7 @@ BASE_DIR = Path(__file__).parent
 # Alle Vote-IDs dynamisch aus HTML extrahieren
 vote_ids = set()
 
-for page in range(1, 2):  # Maximal 5 Seiten
+for page in range(1, 100):  # Maximal 5 Seiten
     html_url = f'https://howtheyvote.eu/votes?sort=relevance&page={page}'
     html_response = requests.get(html_url)
 
@@ -27,7 +28,7 @@ for page in range(1, 2):  # Maximal 5 Seiten
     print(f'Seite {page} verarbeitet, {len(matches)} IDs gefunden.')
     vote_ids.update(matches)
 
-vote_ids = sorted(vote_ids, key=int)
+vote_ids = sorted(vote_ids, key=int, reverse=True)
 
 if not vote_ids:
     print("Keine Vote-IDs gefunden. Möglicherweise hat sich das HTML geändert?")
@@ -91,3 +92,17 @@ def get_all_members():
                 }
 
     return list(members.values())
+
+# Add sorting functionality to the votes endpoint
+@app.get("/votes/sorted")
+def get_sorted_votes(order: str = "desc"):
+    """Sort votes based on the order parameter."""
+    with open(BASE_DIR / 'vote_data.json', encoding="utf-8") as f:
+        data = json.load(f)
+
+    if order == "asc":
+        sorted_votes = sorted(data, key=lambda x: datetime.datetime.fromisoformat(x['timestamp']))
+    else:
+        sorted_votes = sorted(data, key=lambda x: datetime.datetime.fromisoformat(x['timestamp']), reverse=True)
+
+    return sorted_votes
