@@ -253,12 +253,10 @@
               <a href="https://partei-des-fortschritts.de/" target="_blank" rel="noopener">
                 <img src="/static/icon2.png" alt="Logo" class="me-3" />
               </a>
-              <h1 class="mb-0">{{ texts.votes_title }}</h1>
-            </div>
-            <form method="get" action="/votes/html" class="flex items-center gap-2">
-                 <!-- Member‐Select -->
-                 <select id="member_id" name="member_id" class="form-select member-select" style="width:100%;" onchange="this.form.submit()">
-                   <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
+              <h1 class="mb-0">{{ texts.votes_title }} von</h1>
+              <form method="get" action="/votes/html" class="ms-3">
+                <select id="member_id" name="member_id" class="form-select member-select" style="width:auto;" onchange="this.form.submit()">
+                  <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
                   {% for member in members %}
                   <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.name }}</option>
                   {% endfor %}
@@ -269,7 +267,8 @@
                 <input type="hidden" name="start_date" value="{{ start_date }}">
                 <input type="hidden" name="end_date" value="{{ end_date }}">
                 {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
-            </form>
+              </form>
+            </div>
             {% if sel_member_info %}
             <div class="ms-auto">
               <div class="card bg-white rounded shadow-sm p-3 d-flex flex-row align-items-center" style="min-width:220px;">
@@ -355,7 +354,7 @@
                 {% if not votes %}
                 <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
                 {% else %}
-                {% for v in votes %}
+                {% for v in votes|sort(attribute='timestamp', reverse=True) %}
                 <div class="flex-shrink-0 me-4">
                     <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                         <div class="card-body text-center">
@@ -423,7 +422,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <p class="mt-3 small text-muted">Reference: {{ v.reference }}</p>
+                            <p class="mt-3 small text-muted">Reference: {% if v.reference %}<a href="https://www.europarl.europa.eu/doceo/document/{{ v.reference.replace('-', '/').replace('A', 'A-').replace('/', '-').split('-')[0] + '-' + v.reference.split('-')[1] + '-' + v.reference.split('/')[1] }}_EN.html" target="_blank">{{ v.reference }}</a>{% else %}No reference available{% endif %}</p>
                         </div>
                     </div>
                 </div>
@@ -644,5 +643,21 @@
           Licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">AGPL-3.0 license</a>.
       </p>
     </footer>
+    <script>
+window.addEventListener('DOMContentLoaded', function() {
+    // Sort votes by timestamp in descending order (newest first)
+    const votesContainer = document.getElementById('votes-container');
+    const voteCards = Array.from(votesContainer.children);
+
+    voteCards.sort((a, b) => {
+        const dateA = new Date(a.querySelector('.vote-meta').textContent.trim().split(' ')[0]);
+        const dateB = new Date(b.querySelector('.vote-meta').textContent.trim().split(' ')[0]);
+        return dateB - dateA; // Descending order
+    });
+
+    // Re-append sorted cards to the container
+    voteCards.forEach(card => votesContainer.appendChild(card));
+});
+</script>
 </body>
 </html>

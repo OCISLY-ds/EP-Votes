@@ -31,6 +31,9 @@
             font-weight: bold;
             font-size: 1.2em;
         }
+        .legend-container { font-size: 0.9em; }
+        .legend-item { align-items: center; }
+        .legend-color { width: 20px; height: 20px; display: inline-block; border-radius: 50%; }
     </style>
 </head>
 <body>
@@ -76,6 +79,29 @@
                 </div>
             </div>
             {% endfor %}
+        </div>
+        <!-- Display total members in the faction -->
+        <div class="text-center my-4">
+          <h3>Anzahl der Mitglieder in der Fraktion: {{ by_group|sum(attribute='for_count') + by_group|sum(attribute='against_count') + by_group|sum(attribute='abstention_count') + by_group|sum(attribute='did_not_vote_count') }}</h3>
+        </div>
+        <!-- Improved legend design -->
+        <div class="legend-container d-flex justify-content-center gap-4 mt-4">
+          <div class="legend-item d-flex align-items-center">
+            <span class="legend-color" style="background-color: #7AB800;"></span>
+            <span class="legend-label ms-2">Für</span>
+          </div>
+          <div class="legend-item d-flex align-items-center">
+            <span class="legend-color" style="background-color: #D0006F;"></span>
+            <span class="legend-label ms-2">Gegen</span>
+          </div>
+          <div class="legend-item d-flex align-items-center">
+            <span class="legend-color" style="background-color: #00C1F0;"></span>
+            <span class="legend-label ms-2">Enthaltung</span>
+          </div>
+          <div class="legend-item d-flex align-items-center">
+            <span class="legend-color" style="background-color: #B6B6B6;"></span>
+            <span class="legend-label ms-2">Nicht abgestimmt</span>
+          </div>
         </div>
         <!-- Back to list -->
         <div class="text-center">

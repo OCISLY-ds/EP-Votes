@@ -441,6 +441,14 @@ def get_vote_detail(request: Request, vote_id: int, lang: str = Query('de', patt
 
     stats = vote.get("stats", {})
     by_group = stats.get("by_group", [])
+
+    # Ensure by_group contains required attributes with fallback values
+    for group in by_group:
+        group.setdefault("for_count", 0)
+        group.setdefault("against_count", 0)
+        group.setdefault("abstention_count", 0)
+        group.setdefault("did_not_vote_count", 0)
+
     by_country = stats.get("by_country", [])
     member_votes = vote.get("member_votes", [])
 
@@ -450,7 +458,9 @@ def get_vote_detail(request: Request, vote_id: int, lang: str = Query('de', patt
         "by_group": by_group,
         "by_country": by_country,
         "member_votes": member_votes,
-        "lang": lang
+        "lang": lang,
+        "texts": LANG_TEXTS.get(lang, LANG_TEXTS['de']),
+        "vote_groups": by_group or []
     })
 
 
