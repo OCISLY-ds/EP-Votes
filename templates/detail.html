@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="{{ lang }}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ vote.display_title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ vote.display_title }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
         .voting-header { background: #FFA600; color: white; padding: 2rem 0; text-align: center; }
         .voting-header h1 { margin:0; font-size:2rem; color: white; }
         .chart-wrapper {
@@ -31,137 +31,156 @@
             font-weight: bold;
             font-size: 1.2em;
         }
-        .legend-container { font-size: 0.9em; }
-        .legend-item { align-items: center; }
-        .legend-color { width: 20px; height: 20px; display: inline-block; border-radius: 50%; }
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 2rem;
+            font-size: 1rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+        .chart-container canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .chart-container canvas[data-for] {
+            background-color: var(--color-for);
+        }
+        .chart-container canvas[data-against] {
+            background-color: var(--color-against);
+        }
+        .chart-container canvas[data-abstention] {
+            background-color: var(--color-abst);
+        }
+        .chart-container canvas[data-novote] {
+            background-color: var(--color-novote);
+        }
     </style>
 </head>
 <body>
-    <!-- Language switcher -->
-    <div class="text-end p-2">
-        <a href="?lang=de" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
-        <a href="?lang=en" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
+
+  <!-- Sprache -->
+  <div class="lang-switch d-flex justify-content-end">
+    <a href="?lang=de" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %} me-1">DE</a>
+    <a href="?lang=en" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
+  </div>
+
+  <!-- Banner -->
+  <header class="voting-header text-center">
+    <img src="/static/icon2.png" alt="Logo" style="height: 50px; margin-bottom: .5rem;">
+    <h1>{{ vote.display_title }}</h1>
+    {% set dt = vote.timestamp.split('T')[0].split('-') %}
+    <p>Datum: {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}</p>
+  </header>
+
+  <main class="container my-5">
+
+    <!-- Beschreibung & Dokument -->
+    <p class="text-muted text-center mb-4">{{ vote.description }}</p>
+    <div class="text-center mb-4">
+      <a href="{{ vote.document_link }}" class="btn btn-sm btn-document">{{ texts.open_document }}</a>
     </div>
-    <!-- Banner -->
-    <div class="voting-header">
-        <h1>{{ vote.display_title }}</h1>
-        {% set dt = vote.timestamp.split('T')[0].split('-') %}
-        <p class="mb-0">Datum: {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}</p>
+
+    <!-- Warnung -->
+    <div class="alert alert-warning border-0 rounded-3">
+      {{ texts.detail_banner_message }}
     </div>
-    <div class="container my-4">
-        <p class="text-muted text-center">{{ vote.description }}</p>
-        <div class="text-center mb-4">
-            <a href="{{ vote.document_link }}" class="btn btn-sm" style="background-color:#f2aa3c; color:#000;">{{ texts.open_document }}</a>
-        </div>
-        <!-- Warning banner -->
-        <div class="alert alert-warning" role="alert">
-          {{ texts.detail_banner_message }}
-        </div>
-        <!-- Per-faction vote distribution -->
-        <div class="row g-4 justify-content-center">
-            {% for grp in vote.stats.by_group %}
-            <div class="col-6 col-md-3 text-center">
-                <h6 class="mb-2">{{ grp.group.short_label }}</h6>
-                <div class="chart-wrapper">
-                    <canvas id="group-chart-{{ loop.index0 }}"
-                            data-for="{{ grp.stats.FOR }}"
-                            data-against="{{ grp.stats.AGAINST }}"
-                            data-abstention="{{ grp.stats.ABSTENTION }}"
-                            data-novote="{{ grp.stats.DID_NOT_VOTE }}"
-                            data-members="{{ grp.members }}"></canvas>
-                    <!-- Legend with absolute vote counts -->
-                    <ul class="list-unstyled small mt-2 text-start">
-                        <li class="text-success">{{ texts.for_label }}: {{ grp.stats.FOR }}</li>
-                        <li class="text-danger">{{ texts.against_label }}: {{ grp.stats.AGAINST }}</li>
-                        <li class="text-info">{{ texts.abstention_label }}: {{ grp.stats.ABSTENTION }}</li>
-                        <li class="text-secondary">{{ texts.did_not_vote_label }}: {{ grp.stats.DID_NOT_VOTE }}</li>
-                    </ul>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        <!-- Display total members in the faction -->
-        <div class="text-center my-4">
-          <h3>Anzahl der Mitglieder in der Fraktion: {{ by_group|sum(attribute='for_count') + by_group|sum(attribute='against_count') + by_group|sum(attribute='abstention_count') + by_group|sum(attribute='did_not_vote_count') }}</h3>
-        </div>
-        <!-- Improved legend design -->
-        <div class="legend-container d-flex justify-content-center gap-4 mt-4">
-          <div class="legend-item d-flex align-items-center">
-            <span class="legend-color" style="background-color: #7AB800;"></span>
-            <span class="legend-label ms-2">Für</span>
+
+    <!-- Pro-Fraktion Auswertung -->
+    <div class="row g-4 justify-content-center">
+      {% for grp in vote.stats.by_group %}
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+        <div class="card card-group-stats p-3 text-center h-100">
+          <h6 class="mb-3">{{ grp.group.short_label }}</h6>
+          <div class="chart-container mb-3">
+            <canvas id="group-chart-{{ loop.index0 }}"
+                    data-for="{{ grp.stats.FOR }}"
+                    data-against="{{ grp.stats.AGAINST }}"
+                    data-abstention="{{ grp.stats.ABSTENTION }}"
+                    data-novote="{{ grp.stats.DID_NOT_VOTE }}"></canvas>
+            <div class="chart-center-text"></div>
           </div>
-          <div class="legend-item d-flex align-items-center">
-            <span class="legend-color" style="background-color: #D0006F;"></span>
-            <span class="legend-label ms-2">Gegen</span>
-          </div>
-          <div class="legend-item d-flex align-items-center">
-            <span class="legend-color" style="background-color: #00C1F0;"></span>
-            <span class="legend-label ms-2">Enthaltung</span>
-          </div>
-          <div class="legend-item d-flex align-items-center">
-            <span class="legend-color" style="background-color: #B6B6B6;"></span>
-            <span class="legend-label ms-2">Nicht abgestimmt</span>
-          </div>
+          <ul class="list-unstyled small text-start">
+            <li class="text-success">{{ texts.for_label }}: {{ grp.stats.FOR }}</li>
+            <li class="text-danger">{{ texts.against_label }}: {{ grp.stats.AGAINST }}</li>
+            <li class="text-info">{{ texts.abstention_label }}: {{ grp.stats.ABSTENTION }}</li>
+            <li class="text-secondary">{{ texts.did_not_vote_label }}: {{ grp.stats.DID_NOT_VOTE }}</li>
+          </ul>
         </div>
-        <!-- Back to list -->
-        <div class="text-center">
-            <a href="/votes/html?lang={{ lang }}" class="btn btn-secondary">&larr; {{ texts.paginated }}</a>
-        </div>
+      </div>
+      {% endfor %}
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-    // Per-group donut charts and membership overlay if present
-    document.querySelectorAll('canvas[id^="group-chart-"]').forEach(function(c){
-        var f = +c.dataset.for;
-        var a = +c.dataset.against;
-        var ab = +c.dataset.abstention;
-        var nv = +c.dataset.novote;
-        var members = parseInt(c.dataset.members || 0, 10);
-        var data = [f, a, ab, nv];
-        new Chart(c, {
-            type:'doughnut',
-            data:{ datasets:[{ data: data, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
-            options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ display:false } } },
+
+    <!-- Zurück -->
+    <div class="text-center">
+      <a href="/votes/html?lang={{ lang }}" class="btn btn-secondary">&larr; {{ texts.paginated }}</a>
+    </div>
+
+  </main>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    document.querySelectorAll('canvas[id^="group-chart-"').forEach(function(c){
+        const ctx = c.getContext('2d');
+        const f = +c.dataset.for;
+        const a = +c.dataset.against;
+        const ab = +c.dataset.abstention;
+        const nv = +c.dataset.novote;
+        const total = f + a + ab + nv;
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [f, a, ab, nv],
+                    backgroundColor: [
+                        '#7AB800', // Color for "FOR"
+                        '#D0006F', // Color for "AGAINST"
+                        '#00C1F0', // Color for "ABSTENTION"
+                        '#B6B6B6'  // Color for "DID_NOT_VOTE"
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: { display: false }
+                }
+            },
             plugins: [{
                 id: 'centerText',
-                afterDraw: function(chart){
-                    var ctx = chart.ctx;
+                afterDraw: chart => {
+                    const { ctx, chartArea: { width, height } } = chart;
                     ctx.save();
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
+                    ctx.font = 'bold 1rem sans-serif';
                     ctx.fillStyle = '#000';
-                    var x = chart.width / 2;
-                    var y = chart.height / 2;
-                    // Draw member count
-                    ctx.font = 'bold 1.2em sans-serif';
-                    ctx.fillText(members.toString(), x, y - 8);
-                    // Draw label
-                    ctx.font = '0.8em sans-serif';
-                    ctx.fillText('{{ texts.members_label }}', x, y + 8);
+                    ctx.fillText(total + ' Mitglieder', width / 2, height / 2);
                     ctx.restore();
                 }
             }]
         });
     });
-    // Group vote distribution charts
-    (function(){
-        var voteGroups = {{ vote_groups|tojson }};
-        var t = { yes: '{{ texts.yes_label }}', no: '{{ texts.no_label }}', abstain: '{{ texts.abstain_label }}' };
-        Object.keys(voteGroups).forEach(function(group){
-            var votes = voteGroups[group];
-            var c = document.getElementById('chart-' + group);
-            if (!c) return;
-            var ctx = c.getContext('2d');
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: [t.yes, t.no, t.abstain],
-                    datasets: [{ data: [votes.yes, votes.no, votes.abstain], backgroundColor: ['#7AB800','#D0006F','#00C1F0'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: true, position: 'bottom' } } }
-            });
-        });
-    })();
-    </script>
- </body>
- </html>
+  </script>
+</body>
+</html>
