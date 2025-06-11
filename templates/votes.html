@@ -191,6 +191,12 @@
         .votes-wrapper {
             position: relative;
         }
+        .votes-wrapper nav.pagination {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+        }
         #votes-container {
             display: flex;
             overflow-x: auto;
@@ -281,11 +287,11 @@
                 <img src="https://howtheyvote.eu{{ sel_member_info.photo_url }}" alt="Foto von {{ sel_member_name }}" class="rounded-circle me-3" style="width:100px; height:100px; object-fit:cover; object-position:50% 30%;" />
                 {% endif %}
                 <div class="card-body p-0 text-start">
-                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.country }}:</strong> {{ sel_member_info.country }}</p>
-                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.group }}:</strong> {{ sel_member_info.group }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.country or ('Country' if lang=='en' else 'Land') }}:</strong> {{ sel_member_info.country }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.group or ('Group' if lang=='en' else 'Fraktion') }}:</strong> {{ sel_member_info.group }}</p>
                   {% if sel_member_info.age %}
-                  <p class="mb-0"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.age }}:</strong> {{ sel_member_info.age }}</p>
-                 {% endif %}
+                  <p class="mb-0"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.age or ('Age' if lang=='en' else 'Alter') }}:</strong> {{ sel_member_info.age }}</p>
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -439,42 +445,36 @@
             <div class="scroll-arrows">
                 <button onclick="scrollRight()">→</button> <!-- GECHECKT -->
             </div>
+
+            <nav aria-label="{{ texts.page }}-Navigation">
+                <ul class="pagination justify-content-center">
+                    {% set window = 2 %}
+                    {% set first_page = 1 %}
+                    {% set last_page = total_pages %}
+                    {% set start_page = page - window if page - window > first_page else first_page %}
+                    {% set end_page = page + window if page + window < last_page else last_page %}
+                    <li class="page-item disabled"><span class="page-link">{{ texts.page }} {{ page }} / {{ total_pages }}</span></li>
+                    {% if start_page > first_page %}
+                        <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{first_page}}</a></li>
+                        {% if start_page > first_page + 1 %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endif %}
+                    {% for i in range(start_page, end_page+1) %}
+                        <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{i}}</a></li>
+                    {% endfor %}
+                    {% if end_page < last_page %}
+                        {% if end_page < last_page - 1 %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                        <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{last_page}}</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
         </div>
         <div class="mt-3 text-center">
             <p class="mb-1">{{ texts.shown_of.format(shown=shown_votes, total=total_votes) }}</p>
         </div>
-        <div class="mb-3 text-center">
-            {% if not show_all %}
-            <a href="?show_all=true&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">{{ texts.show_all }}</a>
-            {% else %}
-            <a href="?show_all=false&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-secondary">{{ texts.paginated }}</a>
-            {% endif %}
-        </div>
-        <nav aria-label="{{ texts.page }}-Navigation">
-            <ul class="pagination justify-content-center">
-                {% set window = 2 %}
-                {% set first_page = 1 %}
-                {% set last_page = total_pages %}
-                {% set start_page = page - window if page - window > first_page else first_page %}
-                {% set end_page = page + window if page + window < last_page else last_page %}
-                <li class="page-item disabled"><span class="page-link">{{ texts.page }} {{ page }} / {{ total_pages }}</span></li>
-                {% if start_page > first_page %}
-                    <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{first_page}}</a></li>
-                    {% if start_page > first_page + 1 %}
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    {% endif %}
-                {% endif %}
-                {% for i in range(start_page, end_page+1) %}
-                    <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{i}}</a></li>
-                {% endfor %}
-                {% if end_page < last_page %}
-                    {% if end_page < last_page - 1 %}
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    {% endif %}
-                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{last_page}}</a></li>
-                {% endif %}
-            </ul>
-        </nav>
     </main>
     <!-- Bootstrap JS Bundle (für Select2 und andere Komponenten) -->
     <script src="/static/bootstrap.bundle.min.js"></script>
