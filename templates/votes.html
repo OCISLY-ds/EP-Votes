@@ -193,8 +193,9 @@
         }
         .votes-wrapper nav.pagination {
             position: absolute;
-            bottom: 0;
+            top: 50%;
             right: 1rem;
+            transform: translateY(-50%);
         }
         #votes-container {
             display: flex;
@@ -211,8 +212,8 @@
         /* Nur rechter Scroll-Pfeil, an den Rand heran */ 
         .scroll-arrows {
             position: absolute;
-            right: 1rem;
-            top: calc(2rem + 1rem); /* Align with the voting bar */
+            right: 2rem; /* Move further to the left */
+            bottom: 2rem; /* Move further down */
             transform: translateY(0);
             pointer-events: none;
             display: flex;
@@ -239,6 +240,8 @@
         .pagination {
             justify-content: flex-end; /* Move pagination to the far right */
             margin-right: 2rem; /* Add spacing to push it outside the voting list */
+            margin-bottom: 2rem; /* Move pagination further down */
+            margin-left: 2rem; /* Move pagination further to the left */
         }
     </style>
 </head>
@@ -356,7 +359,7 @@
                 {% if not votes %}
                 <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
                 {% else %}
-                {% for v in votes %}
+                {% for v in votes|reverse %}
                 <div class="flex-shrink-0 me-4">
                     <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                         <div class="card-body text-center">
