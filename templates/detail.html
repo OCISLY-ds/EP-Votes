@@ -84,15 +84,15 @@
   <!-- Banner -->
   <header class="voting-header text-center">
     <img src="/static/icon2.png" alt="Logo" style="height: 50px; margin-bottom: .5rem;">
-    <h1>{{ vote.display_title }}</h1>
+    <h1>{{ texts.vote_title }}</h1>
     {% set dt = vote.timestamp.split('T')[0].split('-') %}
-    <p>Datum: {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}</p>
+    <p>{{ texts.date }}: {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}</p>
   </header>
 
   <main class="container my-5">
 
     <!-- Beschreibung & Dokument -->
-    <p class="text-muted text-center mb-4">{{ vote.description }}</p>
+    <p class="text-muted text-center mb-4">{{ texts.description }}</p>
     <div class="text-center mb-4">
       <a href="{{ vote.document_link }}" class="btn btn-sm btn-document">{{ texts.open_document }}</a>
     </div>

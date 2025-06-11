@@ -244,7 +244,7 @@
     <div class="voting-header position-relative">
         <!-- Sprachenselector oben rechts -->
         <div class="position-absolute top-0 end-0 p-3">
-            <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %}">DE</a>
+            <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %} me-1">DE</a>
             <a href="?lang=en&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
         </div>
         <div class="container flex flex-wrap items-center justify-between gap-2">
@@ -276,10 +276,10 @@
                 <img src="https://howtheyvote.eu{{ sel_member_info.photo_url }}" alt="Foto von {{ sel_member_name }}" class="rounded-circle me-3" style="width:100px; height:100px; object-fit:cover; object-position:50% 30%;" />
                 {% endif %}
                 <div class="card-body p-0 text-start">
-                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">Land:</strong> {{ sel_member_info.country }}</p>
-                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">Fraktion:</strong> {{ sel_member_info.group }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.country }}:</strong> {{ sel_member_info.country }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.group }}:</strong> {{ sel_member_info.group }}</p>
                   {% if sel_member_info.age %}
-                  <p class="mb-0"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">Alter:</strong> {{ sel_member_info.age }}</p>
+                  <p class="mb-0"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.age }}:</strong> {{ sel_member_info.age }}</p>
                  {% endif %}
                 </div>
               </div>
@@ -309,18 +309,18 @@
                     </div>
                 </div>
                 <div class="col-auto">
-                    <label for="date_range" class="form-label">Zeitraum</label>
+                    <label for="date_range" class="form-label">{{ texts.date_range }}</label>
                     <div class="input-group w-auto">
-                        <input type="text" id="start_date" name="start_date" class="form-control" style="width:11ch;" placeholder="TT.MM.JJJJ" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
-                        <span class="input-group-text">bis</span>
-                        <input type="text" id="end_date" name="end_date" class="form-control" style="width:11ch;" placeholder="TT.MM.JJJJ" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                        <input type="text" id="start_date" name="start_date" class="form-control" style="width:11ch;" placeholder="{{ texts.start_date_placeholder }}" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                        <span class="input-group-text">{{ texts.to }}</span>
+                        <input type="text" id="end_date" name="end_date" class="form-control" style="width:11ch;" placeholder="{{ texts.end_date_placeholder }}" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                     </div>
                 </div>
                 <!-- Geo-Filter Dropdown -->
                 <div class="col-md-2">
-                    <label for="geo" class="form-label">Länderfilter</label>
+                    <label for="geo" class="form-label">{{ texts.geo_filter }}</label>
                     <select id="geo" name="geo" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="">{{ texts.show_all or 'Alle Bereiche' }}</option>
+                        <option value="">{{ texts.show_all }}</option>
                         {% for opt in geo_options %}
                         <option value="{{ opt.code }}" {% if geo==opt.code %}selected{% endif %}>{{ opt.label }}</option>
                         {% endfor %}
@@ -328,10 +328,10 @@
                 </div>
                 <!-- Sortierung Dropdown: direkt im GET-Request, kein JS-Fetch mehr --> 
                 <div class="col-md-2">
-                    <label for="sort-order" class="form-label">Sortierung</label>
-                    <select id="sort-order" name="sort-order" class="form-select form-select-sm" onchange="this.form.submit()"> <!-- GECHECKT -->
-                        <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>Neueste zuerst</option>
-                        <option value="asc" {% if sort_order=='asc' %}selected{% endif %}>Älteste zuerst</option>
+                    <label for="sort-order" class="form-label">{{ texts.sorting }}</label>
+                    <select id="sort-order" name="sort-order" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>{{ texts.newest_first }}</option>
+                        <option value="asc" {% if sort_order=='asc' %}selected{% endif %}>{{ texts.oldest_first }}</option>
                     </select>
                 </div>
                 <div class="col-md-1 text-end">

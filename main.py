@@ -5,14 +5,37 @@ import json
 from fastapi import FastAPI
 from pathlib import Path
 import datetime
+import sqlite3
 
 app = FastAPI()
 BASE_DIR = Path(__file__).parent
 
-# Alle Vote-IDs dynamisch aus HTML extrahieren
+# Pfad zur Datenbank
+DB_PATH = BASE_DIR / 'votes.db'
+
+# Verbinde mit der Datenbank
+conn = sqlite3.connect(DB_PATH)
+cursor = conn.cursor()
+
+# Tabelle erstellen, falls nicht vorhanden
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS votes (
+    id INTEGER PRIMARY KEY,
+    timestamp TEXT,
+    display_title TEXT NOT NULL
+)
+''')
+conn.commit()
+
+# Lade alle bereits vorhandenen IDs aus der Datenbank
+cursor.execute('SELECT id FROM votes')
+existing_ids = {row[0] for row in cursor.fetchall()}
+
+# Neue IDs sammeln
 vote_ids = set()
 
-for page in range(1, 100):  # Maximal 5 Seiten
+# HTML-Seiten durchgehen, aber abbrechen, wenn eine Seite keine neuen IDs liefert
+for page in range(1, 100):
     html_url = f'https://howtheyvote.eu/votes?sort=relevance&page={page}'
     html_response = requests.get(html_url)
 
@@ -22,60 +45,70 @@ for page in range(1, 100):  # Maximal 5 Seiten
 
     matches = re.findall(r'/votes/(\d{6})', html_response.text)
     if not matches:
-        print(f'Keine weiteren IDs auf Seite {page}.')
+        print(f'Keine IDs auf Seite {page}.')
         break
 
-    print(f'Seite {page} verarbeitet, {len(matches)} IDs gefunden.')
-    vote_ids.update(matches)
+    # Filtere nur neue IDs
+    new_ids_on_page = [vote_id for vote_id in matches if int(vote_id) not in existing_ids]
 
+    if not new_ids_on_page:
+        print(f'Nur bekannte IDs auf Seite {page}, Abbruch.')
+        break
+
+    print(f'Seite {page}: {len(new_ids_on_page)} neue IDs gefunden.')
+    vote_ids.update(new_ids_on_page)
+
+# IDs sortieren für konsistente Verarbeitung (optional)
 vote_ids = sorted(vote_ids, key=int, reverse=True)
 
-if not vote_ids:
-    print("Keine Vote-IDs gefunden. Möglicherweise hat sich das HTML geändert?")
-
-# Ergebnisse in einer Liste sammeln
+# Abstimmungen abrufen und speichern
 results = []
 
-for vote_id in vote_ids:
+# Update logic to check for new vote IDs and download only those
+cursor.execute('SELECT id FROM votes')
+existing_ids = {row[0] for row in cursor.fetchall()}
+
+# Filter out already existing vote IDs
+new_vote_ids = [vote_id for vote_id in vote_ids if int(vote_id) not in existing_ids]
+
+# Process only new votes
+for vote_id in new_vote_ids:
     url = f'https://howtheyvote.eu/api/votes/{vote_id}'
     response = requests.get(url)
 
     if response.status_code == 200:
         data = response.json()
-        geo_areas = [area.get('label', '') for area in data.get('geo_areas', [])]
 
-        # Abstimmungsverhalten aller Abgeordneten erfassen
-        member_votes = []
-        for vote in data.get('member_votes', []):
-            member = vote.get('member', {})
-            member_votes.append({
-                'member_id': member.get('id'),
-                'last_name': member.get('last_name'),
-                'short_label': member.get('short_label'),
-                'position': vote.get('position')
-            })
-
+        # Update description if necessary
         description = data.get('description')
         if description:
             description = description.replace('Proposition de résolution (ensemble du texte)', 'Motions for resolutions')
+            data['description'] = description
 
-        # Speichere alle verfügbaren Informationen aus den API-Daten
+        # Save complete vote data
         results.append(data)
+        cursor.execute(
+            'INSERT INTO votes (id, timestamp, display_title, raw_json) VALUES (?, ?, ?, ?)',
+            (vote_id, data.get('timestamp'), data.get('display_title'), json.dumps(data))
+        )
+        conn.commit()
 
         print(f'Abstimmung {vote_id} verarbeitet.')
     else:
         print(f'Abstimmung {vote_id} nicht gefunden.')
 
-    time.sleep(0.01)  # Kurze Pause, um die Serverlast zu reduzieren
+    time.sleep(0.01)  # Reduce server load
 
-# Speichern als JSON für Web-Darstellung
+conn.close()
+
+# JSON-Datei für Webzugriff erzeugen
 output_path = BASE_DIR / 'vote_data.json'
 with open(output_path, 'w', encoding='utf-8') as f:
     json.dump(results, f, ensure_ascii=False, indent=2)
 
+# API-Endpunkte wie gehabt
 @app.get("/members")
 def get_all_members():
-    """Gibt eine Liste aller Abgeordneten zurück."""
     with open(BASE_DIR / 'vote_data.json', encoding="utf-8") as f:
         data = json.load(f)
 
@@ -93,10 +126,8 @@ def get_all_members():
 
     return list(members.values())
 
-# Add sorting functionality to the votes endpoint
 @app.get("/votes/sorted")
 def get_sorted_votes(order: str = "desc"):
-    """Sort votes based on the order parameter."""
     with open(BASE_DIR / 'vote_data.json', encoding="utf-8") as f:
         data = json.load(f)
 
