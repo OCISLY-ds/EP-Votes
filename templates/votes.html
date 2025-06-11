@@ -264,7 +264,7 @@
               <a href="https://partei-des-fortschritts.de/" target="_blank" rel="noopener">
                 <img src="/static/icon2.png" alt="Logo" class="me-3" />
               </a>
-              <h1 class="mb-0">{{ texts.votes_title }} von</h1>
+              <h1 class="mb-0">{{ texts.votes_title }} {{ 'from' if lang=='en' else 'von' }}</h1>
               <form method="get" action="/votes/html" class="ms-3">
                 <select id="member_id" name="member_id" class="form-select member-select" style="width:auto;" onchange="this.form.submit()">
                   <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
@@ -320,7 +320,7 @@
                     </div>
                 </div>
                 <div class="col-auto">
-                    <label for="date_range" class="form-label">{{ texts.date_range or 'Zeitraum' }}</label>
+                    <label for="date_range" class="form-label">{{ texts.date_range or ('Date range' if lang=='en' else 'Zeitraum') }}</label>
                     <div class="input-group w-auto">
                         <input type="text" id="start_date" name="start_date" class="form-control" style="width:11ch;" placeholder="{{ texts.start_date_placeholder }}" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                         <span class="input-group-text">{{ texts.to }}</span>
@@ -335,14 +335,6 @@
                         {% for opt in geo_options %}
                         <option value="{{ opt.code }}" {% if geo==opt.code %}selected{% endif %}>{{ opt.label }}</option>
                         {% endfor %}
-                    </select>
-                </div>
-                <!-- Sortierung Dropdown: direkt im GET-Request, kein JS-Fetch mehr --> 
-                <div class="col-md-2">
-                    <label for="sort-order" class="form-label">{{ texts.sorting or 'Sortierung' }}</label>
-                    <select id="sort-order" name="sort-order" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>{{ texts.newest_first }}</option>
-                        <option value="asc" {% if sort_order=='asc' %}selected{% endif %}>{{ texts.oldest_first }}</option>
                     </select>
                 </div>
                 <div class="col-md-1 text-end">
@@ -652,21 +644,5 @@
           Licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">AGPL-3.0 license</a>.
       </p>
     </footer>
-    <script>
-window.addEventListener('DOMContentLoaded', function() {
-    // Sort votes by timestamp in descending order (newest first)
-    const votesContainer = document.getElementById('votes-container');
-    const voteCards = Array.from(votesContainer.children);
-
-    voteCards.sort((a, b) => {
-        const dateA = new Date(a.querySelector('.vote-meta').textContent.trim().split(' ')[0]);
-        const dateB = new Date(b.querySelector('.vote-meta').textContent.trim().split(' ')[0]);
-        return dateB - dateA; // Descending order
-    });
-
-    // Re-append sorted cards to the container
-    voteCards.forEach(card => votesContainer.appendChild(card));
-});
-</script>
 </body>
 </html>
