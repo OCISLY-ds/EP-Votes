@@ -314,7 +314,7 @@
                     </div>
                 </div>
                 <div class="col-auto">
-                    <label for="date_range" class="form-label">{{ texts.date_range }}</label>
+                    <label for="date_range" class="form-label">{{ texts.date_range or 'Zeitraum' }}</label>
                     <div class="input-group w-auto">
                         <input type="text" id="start_date" name="start_date" class="form-control" style="width:11ch;" placeholder="{{ texts.start_date_placeholder }}" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                         <span class="input-group-text">{{ texts.to }}</span>
@@ -323,7 +323,7 @@
                 </div>
                 <!-- Geo-Filter Dropdown -->
                 <div class="col-md-2">
-                    <label for="geo" class="form-label">{{ texts.geo_filter }}</label>
+                    <label for="geo" class="form-label">{{ texts.geo_filter or 'Region' }}</label>
                     <select id="geo" name="geo" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="">{{ texts.show_all }}</option>
                         {% for opt in geo_options %}
@@ -333,7 +333,7 @@
                 </div>
                 <!-- Sortierung Dropdown: direkt im GET-Request, kein JS-Fetch mehr --> 
                 <div class="col-md-2">
-                    <label for="sort-order" class="form-label">{{ texts.sorting }}</label>
+                    <label for="sort-order" class="form-label">{{ texts.sorting or 'Sortierung' }}</label>
                     <select id="sort-order" name="sort-order" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>{{ texts.newest_first }}</option>
                         <option value="asc" {% if sort_order=='asc' %}selected{% endif %}>{{ texts.oldest_first }}</option>
