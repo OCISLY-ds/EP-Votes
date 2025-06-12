@@ -4,47 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Votes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
-    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Noto+Sans:wght@400;500;700;900&family=Public+Sans:wght@400;500;700;900" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/montserrat.css" rel="stylesheet" />
+    <link href="/static/css/preflight.css" rel="stylesheet" />
+    <link href="/static/css/theme.css" rel="stylesheet" />
+    <link href="/static/css/utilities.css" rel="stylesheet" />
+    <!-- Select2 CSS für durchsuchbares Dropdown -->
+    <link href="/static/select2.min.css" rel="stylesheet" />
+    <script src="/static/jquery-3.6.0.min.js"></script>
+    <script src="/static/select2.min.js"></script>
     <style>
       html {
           scroll-behavior: smooth;
         }
         body, input, button, select {
-          font-family: 'Public Sans', 'Noto Sans', sans-serif !important;
+          font-family: 'Montserrat', sans-serif !important;
           font-smooth: always;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
-        /* Remove outline on buttons/inputs for better perf */
         button, input, select {
           outline: none;
         }
-        /* Reduce box-shadow repaints */
         .card, .member-donut-highlight-box {
           will-change: box-shadow;
         }
-        /* Use transform for GPU acceleration on cards */
         .card {
           transform: translateZ(0);
         }
-        /* Optimize image rendering if any */
         img {
           image-rendering: auto;
           max-width: 100%;
           height: auto;
         }
-        /* Reduce CSS selector complexity for perf */
         .d-flex, .flex-column, .flex-row, .align-items-center, .align-items-start, .justify-content-center, .justify-content-start, .gap-2, .gap-3 {
           will-change: auto;
         }
-        /* Optimize transitions */
         * {
           transition: none !important;
         }
-        /* Hide scrollbars for perf */
         ::-webkit-scrollbar {
           width: 8px;
           background: #f0f0f0;
@@ -53,21 +51,23 @@
           background: #e0e0e0;
           border-radius: 4px;
         }
-        .voting-header { background: #f2aa3c; color: white; padding: 2rem 0; text-align:center; }
+        .voting-header { background: #FFA600; color: white; padding: 2rem 0; text-align:center; }
         .voting-header h1 { margin:0; font-size:2rem; }
+        .voting-header img {
+          height: 6.5rem;
+          width: auto;
+          object-fit: contain;
+        }
         .filter-bar { background:#f0f4f8; padding:1rem; margin-bottom:1rem; border-radius:0.25rem; }
         .voting-table th { background:#e1e5ea; }
         .vote-title {
             font-size: 1.25rem;
             font-weight: bold;
-        }
-        /* Clamp vote titles to 3 lines */
-        .vote-title {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
         .vote-meta {
             color: #666;
@@ -82,7 +82,6 @@
           margin-bottom: 2px;
           position: relative;
         }
-        /* From Uiverse.io by Nawsome */
         .loadingspinner {
           --square: 26px;
           --offset: 30px;
@@ -189,6 +188,62 @@
           0% { transform: scale(0.75); opacity: 0.0; }
           100% { transform: scale(1.0); opacity: 1.0; }
         }
+        /* Wrapper um #votes-container für Scroll-Pfeile */ 
+        .votes-wrapper {
+            position: relative;
+        }
+        .votes-wrapper nav.pagination {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+        }
+        #votes-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+        #votes-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        #votes-container::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+        /* Nur rechter Scroll-Pfeil, an den Rand heran */ 
+        .scroll-arrows {
+            position: absolute;
+            right: 2rem; /* Move further to the left */
+            bottom: 2rem; /* Move further down */
+            transform: translateY(0);
+            pointer-events: none;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .scroll-arrows button {
+            pointer-events: auto;
+            background: #FFA600;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .scroll-arrows button:hover {
+            background: #e59400;
+        }
+        .filter-bar {
+            max-width: 1200px; /* Make the filter bar significantly wider */
+            margin: 0 auto; /* Center the filter bar */
+        }
+        /* Adjust pagination alignment */
+        .pagination {
+            justify-content: flex-end; /* Move pagination to the far right */
+            margin-right: 2rem; /* Add spacing to push it outside the voting list */
+            margin-bottom: 2rem; /* Move pagination further down */
+            margin-left: 2rem; /* Move pagination further to the left */
+        }
     </style>
 </head>
 <body class="bg-[#fcfbf8] min-h-screen">
@@ -200,39 +255,50 @@
       <div id="square4"></div>
       <div id="square5"></div>
     </div>
-    <!-- Language switcher -->
-    <div class="text-end p-2">
-        <form method="get" action="/votes/html" class="d-flex align-items-center gap-2">
-            <input type="text" id="member_search" name="member_search" class="form-control form-control-sm w-auto" placeholder="{{ texts.search_member }}" value="{{ query }}">
-            <select id="member_id" name="member_id" class="form-select form-select-sm w-50">
-                {% for member in members %}
-                <option value="{{ member.id }}" {% if member.id == selected_member_id %}selected{% endif %}>
-                    {{ member.first_name }} {{ member.last_name }}
-                </option>
-                {% endfor %}
-            </select>
-            <input type="hidden" name="page" value="{{ page }}">
-            <input type="hidden" name="lang" value="{{ lang }}">
-            {% if query %}<input type="hidden" name="query" value="{{ query }}">{% endif %}
-            {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
-            <button type="submit" class="btn btn-sm btn-primary">{{ texts.search }}</button>
-        </form>
-    </div>
-    <div class="voting-header">
+    <div class="voting-header position-relative">
+        <!-- Sprachenselector oben rechts -->
+        <div class="position-absolute top-0 end-0 p-3">
+            <a href="?lang=de&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='de' %}btn-primary{% else %}btn-outline-primary{% endif %} me-1">DE</a>
+            <a href="?lang=en&page={{ page }}&member_id={{ selected_member_id }}{% if show_all %}&show_all=true{% endif %}{% if query %}&query={{ query }}{% endif %}{% if geo %}&geo={{ geo }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="btn btn-sm {% if lang=='en' %}btn-primary{% else %}btn-outline-primary{% endif %}">EN</a>
+        </div>
         <div class="container flex flex-wrap items-center justify-between gap-2">
-            <h1 class="mb-0">{{ texts.votes_title }}</h1>
-            <form method="get" action="/votes/html" class="flex items-center gap-2">
-                <span class="text-lg font-medium">{{ texts.of }}</span>
-                <select id="member_id" name="member_id" class="form-select form-select-sm w-50" onchange="this.form.submit()">
-                    {% for member in members %}
-                    <option value="{{ member.id }}" {% if member.id == selected_member_id %}selected{% endif %}>{{ member.first_name }} {{ member.last_name }}</option>
-                    {% endfor %}
+            <!-- Logo und Titel -->
+            <div class="d-flex align-items-center">
+              <a href="https://partei-des-fortschritts.de/" target="_blank" rel="noopener">
+                <img src="/static/icon2.png" alt="Logo" class="me-3" />
+              </a>
+              <h1 class="mb-0">{{ texts.votes_title }} {{ 'from' if lang=='en' else 'von' }}</h1>
+              <form method="get" action="/votes/html" class="ms-3">
+                <select id="member_id" name="member_id" class="form-select member-select" style="width:auto;" onchange="this.form.submit()">
+                  <option value="" disabled {% if not selected_member_id %}selected{% endif %}>{{ texts.member }} auswählen...</option>
+                  {% for member in members %}
+                  <option value="{{ member.id }}" {% if member.id==selected_member_id %}selected{% endif %}>{{ member.name }}</option>
+                  {% endfor %}
                 </select>
-                <input type="hidden" name="page" value="{{ page }}">
                 <input type="hidden" name="lang" value="{{ lang }}">
-                {% if query %}<input type="hidden" name="query" value="{{ query }}">{% endif %}
+                <input type="hidden" name="query" value="{{ query }}">
+                <input type="hidden" name="geo" value="{{ geo }}">
+                <input type="hidden" name="start_date" value="{{ start_date }}">
+                <input type="hidden" name="end_date" value="{{ end_date }}">
                 {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
-            </form>
+              </form>
+            </div>
+            {% if sel_member_info %}
+            <div class="ms-auto">
+              <div class="card bg-white rounded shadow-sm p-3 d-flex flex-row align-items-center" style="min-width:220px;">
+                {% if sel_member_info.photo_url %}
+                <img src="https://howtheyvote.eu{{ sel_member_info.photo_url }}" alt="Foto von {{ sel_member_name }}" class="rounded-circle me-3" style="width:100px; height:100px; object-fit:cover; object-position:50% 30%;" />
+                {% endif %}
+                <div class="card-body p-0 text-start">
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.country or ('Country' if lang=='en' else 'Land') }}:</strong> {{ sel_member_info.country }}</p>
+                  <p class="mb-2"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.group or ('Group' if lang=='en' else 'Fraktion') }}:</strong> {{ sel_member_info.group }}</p>
+                  {% if sel_member_info.age %}
+                  <p class="mb-0"><strong style="background-color: #FFA600; color: white; padding: 0.2rem 0.4rem; border-radius: 0.25rem;">{{ texts.age or ('Age' if lang=='en' else 'Alter') }}:</strong> {{ sel_member_info.age }}</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
         </div>
     </div>
     <main class="container my-4" id="main-content" style="opacity:1; transition: opacity 0.3s;">
@@ -243,9 +309,9 @@
                     <label for="query" class="form-label">{{ texts.keyword }}</label>
                     <input type="text" id="query" name="query" class="form-control" placeholder="{{ texts.keyword_placeholder }}" value="{{ query }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-auto">
                     <div class="mt-2">
-                      <div class="flex items-center gap-3 bg-white shadow rounded-lg px-4 py-3 border border-gray-200" style="min-width:150px;">
+                      <div class="flex items-center gap-3 bg-white shadow rounded-lg px-4 py-3 border border-gray-200" style="width:auto;">
                         <div class="flex items-center justify-center bg-[#f2aa3c] bg-opacity-90 rounded-full w-10 h-10">
                           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2a4 4 0 004 4h1a4 4 0 004-4zM17 11V7a4 4 0 00-4-4H9a4 4 0 00-4 4v4a4 4 0 004 4h4a4 4 0 004-4z"/></svg>
                         </div>
@@ -256,17 +322,31 @@
                       </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <label for="date_range" class="form-label">Zeitraum</label>
-                    <div class="input-group">
-                        <input type="text" id="start_date" name="start_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
-                        <span class="input-group-text">bis</span>
-                        <input type="text" id="end_date" name="end_date" class="form-control" placeholder="TT-MM-JJJJ" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                <div class="col-auto">
+                    <label for="date_range" class="form-label">{{ texts.date_range or ('Date range' if lang=='en' else 'Zeitraum') }}</label>
+                    <div class="input-group w-auto">
+                        <input type="text" id="start_date" name="start_date" class="form-control" style="width:11ch;" placeholder="{{ texts.start_date_placeholder }}" value="{{ start_date|default('', true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
+                        <span class="input-group-text">{{ texts.to }}</span>
+                        <input type="text" id="end_date" name="end_date" class="form-control" style="width:11ch;" placeholder="{{ texts.end_date_placeholder }}" value="{{ end_date|default(current_date, true)|replace('-', '.') }}" maxlength="10" autocomplete="off">
                     </div>
+                </div>
+                <!-- Geo-Filter Dropdown -->
+                <div class="col-md-2">
+                    <label for="geo" class="form-label">{{ texts.geo_filter or 'Region' }}</label>
+                    <select id="geo" name="geo" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">{{ texts.show_all }}</option>
+                        {% for opt in geo_options %}
+                        <option value="{{ opt.code }}" {% if geo==opt.code %}selected{% endif %}>{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="col-md-1 text-end">
                     <button type="submit" class="btn btn-primary w-100">{{ texts.search }}</button>
                 </div>
+                <!-- Preserve member selection und view mode -->
+                <input type="hidden" name="member_id" value="{{ selected_member_id }}">
+                <input type="hidden" name="lang" value="{{ lang }}">
+                {% if show_all %}<input type="hidden" name="show_all" value="true">{% endif %}
             </form>
         </div>
         {% if member_missing %}
@@ -274,111 +354,140 @@
             Der Abgeordnete {{ sel_member_name }} ist nicht mehr Mitglied des Parlaments.
         </div>
         {% endif %}
-        <!-- Ergebnisse-Tabelle -->
-        <div class="d-flex flex-nowrap overflow-auto pb-3">
-            {% for v in votes %}
-            <div class="flex-shrink-0 me-4">
-                <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                    <div class="card-body text-center">
-                        <h6 class="text-muted vote-meta mb-1">
-                            {{ v.formatted_date }}
-                            {% if v.geo_areas %}
-                                {% for area in v.geo_areas %}
-                                    <a href="/votes/html?geo={{ area.code }}{% if query %}&query={{ query }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&member_id={{ selected_member_id }}&lang={{ lang }}{% if show_all %}&show_all=true{% endif %}"
-                                       class="badge bg-secondary text-decoration-none">{{ area.label }}</a>
-                                {% endfor %}
-                            {% endif %}
-                        </h6>
-                        <h5 class="card-title vote-title mb-3 text-wrap" style="white-space: normal; word-break: break-word;">
-                            <a href="/votes/detail/{{ v.id }}?lang={{ lang }}" class="text-decoration-none text-dark">{{ v.display_title }}</a>
-                        </h5>
-                        <div class="d-flex justify-content-between align-items-start w-100 mt-3">
-                            <!-- Großer Donut -->
-                            <div class="flex-shrink-0" style="width:50%;">
-                                <canvas id="chart-{{ loop.index0 }}" width="200" height="200" class="d-block mx-auto"
-                                        data-for="{{ v.chart_data.FOR }}"
-                                        data-against="{{ v.chart_data.AGAINST }}"
-                                        data-abstention="{{ v.chart_data.ABSTENTION }}"
-                                        data-novote="{{ v.chart_data.DID_NOT_VOTE }}"></canvas>
-                            </div>
-                            <!-- Mini-Donuts rechts neben dem großen Donut -->
-                            <div class="d-flex flex-column justify-content-start gap-2" style="width:45%;">
-                                {% set labels = [texts.for_label, texts.against_label, texts.abstention_label, texts.did_not_vote_label] %}
-                                {% set colors = ['#7AB800', '#D0006F', '#00C1F0', '#B6B6B6'] %}
-                                {% set chart_data = [v.chart_data.FOR, v.chart_data.AGAINST, v.chart_data.ABSTENTION, v.chart_data.DID_NOT_VOTE] %}
-                                {% for i in range(0, labels|length) %}
-                                <div class="d-flex align-items-center gap-2 {% if v.member_vote == labels[i] %}member-donut-highlight-box{% endif %}">
-                                    <canvas id="mini-donut-{{ loop.index0 }}-{{ i }}" width="50" height="50"
+        <!-- Ergebnisse-Tabelle mit Wrapper für Scroll-Pfeile -->
+        <div class="votes-wrapper">
+            <div id="votes-container" class="d-flex flex-nowrap overflow-auto pb-3">
+                {% if not votes %}
+                <div class="flex-shrink-0"><div class="alert alert-warning">Keine Abstimmungen gefunden.</div></div>
+                {% else %}
+                {% for v in votes|reverse %}
+                <div class="flex-shrink-0 me-4">
+                    <div class="card border-0 h-auto" style="width: 500px; flex: 0 0 500px; border-top: 6px solid #7AB800; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted vote-meta mb-1">
+                                {% set dt = v.timestamp.split('T')[0].split('-') %}
+                                {{ dt[2] }}.{{ dt[1] }}.{{ dt[0] }}
+                                {% if v.geo_areas %}
+                                    {% for area in v.geo_areas %}
+                                        <a href="/votes/html?geo={{ area.code }}{% if query %}&query={{ query }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}&member_id={{ selected_member_id }}&lang={{ lang }}{% if show_all %}&show_all=true{% endif %}"
+                                           class="badge bg-secondary text-decoration-none">{{ area.label }}</a>
+                                    {% endfor %}
+                                {% endif %}
+                            </h6>
+                            <h5 class="card-title vote-title mb-3 text-wrap" style="white-space: normal; word-break: break-word;">
+                                <a href="/votes/detail/{{ v.id }}?lang={{ lang }}" class="text-decoration-none text-dark">{{ v.display_title }}</a>
+                            </h5>
+                            <div class="d-flex justify-content-between align-items-start w-100 mt-3">
+                                <!-- Großer Donut -->
+                                <div class="flex-shrink-0" style="width:50%;">
+                                    <canvas id="chart-{{ loop.index0 }}" width="200" height="200" class="d-block mx-auto"
+                                            data-for="{{ v.chart_data.FOR }}"
+                                            data-against="{{ v.chart_data.AGAINST }}"
+                                            data-abstention="{{ v.chart_data.ABSTENTION }}"
+                                            data-novote="{{ v.chart_data.DID_NOT_VOTE }}"></canvas>
+                                </div>
+                                <!-- Kategorien mit Mini-Donuts -->
+                                <div class="d-flex flex-column justify-content-start gap-3" style="width:45%;">
+                                    {% set labels = [texts.for_label, texts.against_label, texts.abstention_label, texts.did_not_vote_label] %}
+                                    {% set chart_data = [v.chart_data.FOR, v.chart_data.AGAINST, v.chart_data.ABSTENTION, v.chart_data.DID_NOT_VOTE] %}
+                                    {% set pos_map = {'FOR': 0, 'AGAINST': 1, 'ABSTENTION': 2, 'DID_NOT_VOTE': 3} %}
+                                    {% set user_pos = v.position %}
+                                    <div class="d-flex flex-column justify-content-center align-items-start gap-2">
+                                      {% set pos_idx = pos_map.get(user_pos) %}
+                                      {% for i in range(4) %}
+                                        {% if i == pos_idx %}
+                                        <div class="d-flex flex-row align-items-center member-donut-highlight-box bg-warning bg-opacity-25 rounded px-2 py-1" style="border: 2px solid #f2aa3c;">
+                                          <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
                                             data-value="{{ chart_data[i] }}"
                                             data-total="{{ chart_data|sum }}"
                                             data-label="{{ labels[i] }}"
-                                            data-color="{{ colors[i] }}"></canvas>
-                                    <span>{{ labels[i] }}: {{ chart_data[i] }}</span>
+                                            data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
+                                            style="width:40px; height:40px; max-width:40px; max-height:40px;"
+                                          ></canvas>
+                                          <div class="d-flex flex-column ms-2 align-items-start">
+                                            <div class="small fw-bold">{{ texts.my_position }}: {{ labels[i] }}</div>
+                                            <div class="small text-muted">{{ chart_data[i] }}</div>
+                                          </div>
+                                        </div>
+                                        {% else %}
+                                        <div class="d-flex flex-row align-items-center" style="min-height:60px;">
+                                          <canvas id="mini-donut-{{ v.id }}-{{ i }}" width="40" height="40"
+                                            data-value="{{ chart_data[i] }}"
+                                            data-total="{{ chart_data|sum }}"
+                                            data-label="{{ labels[i] }}"
+                                            data-color="{{ ['#7AB800','#D0006F','#00C1F0','#B6B6B6'][i] }}"
+                                            style="width:40px; height:40px; max-width:40px; max-height:40px;"
+                                          ></canvas>
+                                          <div class="d-flex flex-column ms-2 align-items-start">
+                                            <div class="small">{{ labels[i] }}</div>
+                                            <div class="small text-muted">{{ chart_data[i] }}</div>
+                                          </div>
+                                        </div>
+                                        {% endif %}
+                                      {% endfor %}
+                                    </div>
                                 </div>
-                                {% endfor %}
                             </div>
+                            <p class="mt-3 small text-muted">Reference: {% if v.reference %}{{ v.reference }}{% else %}No reference available{% endif %}</p>
                         </div>
-                        <p class="mt-3 small text-muted">{{ v.description }}</p>
-                        <a href="{{ v.document_link }}" class="btn btn-sm" style="background-color:#f2aa3c; color:#000;">{{ texts.open_document }}</a>
                     </div>
                 </div>
+                {% endfor %}
+                {% endif %}
             </div>
-            {% endfor %}
+
+            <!-- Nur rechter Scroll-Pfeil, näher an der rechten Kante -->
+            <div class="scroll-arrows">
+                <button onclick="scrollRight()">→</button> <!-- GECHECKT -->
+            </div>
+
+            <nav aria-label="{{ texts.page }}-Navigation">
+                <ul class="pagination justify-content-center">
+                    {% set window = 2 %}
+                    {% set first_page = 1 %}
+                    {% set last_page = total_pages %}
+                    {% set start_page = page - window if page - window > first_page else first_page %}
+                    {% set end_page = page + window if page + window < last_page else last_page %}
+                    <li class="page-item disabled"><span class="page-link">{{ texts.page }} {{ page }} / {{ total_pages }}</span></li>
+                    {% if start_page > first_page %}
+                        <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{first_page}}</a></li>
+                        {% if start_page > first_page + 1 %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endif %}
+                    {% for i in range(start_page, end_page+1) %}
+                        <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{i}}</a></li>
+                    {% endfor %}
+                    {% if end_page < last_page %}
+                        {% if end_page < last_page - 1 %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                        <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}{% if sort_order %}&sort-order={{sort_order}}{% endif %}">{{last_page}}</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
         </div>
-        <!-- Anzeige der derzeit gezeigten und Gesamt-Votes -->
         <div class="mt-3 text-center">
             <p class="mb-1">{{ texts.shown_of.format(shown=shown_votes, total=total_votes) }}</p>
         </div>
-        <!-- Toggle Alle/Seitenweise -->
-        <div class="mb-3 text-center">
-            {% if not show_all %}
-            <a href="?show_all=true&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">{{ texts.show_all }}</a>
-            {% else %}
-            <a href="?show_all=false&page=1&member_id={{ selected_member_id }}&lang={{ lang }}{% if query %}&query={{ query }}{% endif %}" class="btn btn-sm btn-outline-secondary">{{ texts.paginated }}</a>
-            {% endif %}
-        </div>
-        <!-- Pagination -->
-        <nav aria-label="{{ texts.page }}-Navigation">
-            <ul class="pagination justify-content-center">
-                {% set window = 2 %}
-                {% set first_page = 1 %}
-                {% set last_page = total_pages %}
-                {% set start_page = page - window if page - window > first_page else first_page %}
-                {% set end_page = page + window if page + window < last_page else last_page %}
-                <li class="page-item disabled"><span class="page-link">{{ texts.page }} {{ page }} / {{ total_pages }}</span></li>
-                {% if start_page > first_page %}
-                    <li class="page-item"><a class="page-link" href="?page={{first_page}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{first_page}}</a></li>
-                    {% if start_page > first_page + 1 %}
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    {% endif %}
-                {% endif %}
-                {% for i in range(start_page, end_page+1) %}
-                    <li class="page-item {% if i==page %}active{% endif %}"><a class="page-link" href="?page={{i}}&member_id={{selected_member_id}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{i}}</a></li>
-                {% endfor %}
-                {% if end_page < last_page %}
-                    {% if end_page < last_page - 1 %}
-                        <li class="page-item disabled"><span class="page-link">…</span></li>
-                    {% endif %}
-                    <li class="page-item"><a class="page-link" href="?page={{last_page}}&member_id={{selected_memberId}}&lang={{ lang }}{% if query %}&query={{query}}{% endif %}">{{last_page}}</a></li>
-                {% endif %}
-            </ul>
-        </nav>
-        <!-- Remove the global member-donut-box at the bottom -->
     </main>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Bootstrap JS Bundle (für Select2 und andere Komponenten) -->
+    <script src="/static/bootstrap.bundle.min.js"></script>
+
+    <!-- Flatpickr CSS and JS -->
+    <link rel="stylesheet" href="/static/flatpickr.min.css">
+    <script src="/static/flatpickr.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="/static/chart.min.js"></script>
     <script>
-    // Ladeanimation anzeigen, bis Seite fertig geladen
     document.getElementById('loader').style.display = 'block';
     document.getElementById('main-content').style.opacity = '0.3';
     window.addEventListener('DOMContentLoaded', function() {
       document.getElementById('loader').style.display = 'none';
       document.getElementById('main-content').style.opacity = '1';
     });
-    // Chart.js: Defer rendering for smoother UX
     window.addEventListener('DOMContentLoaded', function() {
-      // Init Haupt-Charts mit Center-Text and ohne Legende
       document.querySelectorAll('canvas[id^="chart-"]').forEach(function(c){
           var f = +c.dataset.for;
           var a = +c.dataset.against;
@@ -402,31 +511,51 @@
                       var d = chart.data.datasets[0].data;
                       var lbls = chart.data.labels;
                       var maxIdx = d.indexOf(Math.max.apply(null,d));
-                      var text = lbls[maxIdx] + ': ' + d[maxIdx];
+                      var label = lbls[maxIdx];
+                      var value = d[maxIdx];
                       ctx.save();
-                      ctx.textAlign='center';
-                      ctx.textBaseline='middle';
-                      ctx.font='bold 1.5em sans-serif';
-                      ctx.fillText(text, chart.width/2, chart.height/2);
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'middle';
+                      ctx.font = 'bold 1.2em sans-serif';
+                      ctx.fillText(label, chart.width/2, chart.height/2 - 10);
+                      ctx.font = '1em sans-serif';
+                      ctx.fillText(value, chart.width/2, chart.height/2 + 10);
                       ctx.restore();
                   }
               }]
           });
       });
-
-      // Init Mini-Donuts
-      document.querySelectorAll('canvas[id^="mini-donut-"]').forEach(function(c){
-          var value = +c.dataset.value;
-          var total = +c.dataset.total;
+      document.querySelectorAll('canvas[id^="mini-donut-"]').forEach(function(c) {
+          var value = parseInt(c.dataset.value, 10);
+          var total = parseInt(c.dataset.total, 10);
           var label = c.dataset.label;
           var color = c.dataset.color;
-          c.width = 100; // Set consistent width
-          c.height = 100; // Set consistent height
           new Chart(c, {
+              type: 'doughnut',
+              data: {
+                  labels: [label, ''],
+                  datasets: [{
+                      data: [value, Math.max(1, total-value)],
+                      backgroundColor: [color, '#eee'],
+                      borderWidth: 0
+                  }]
+              },
+              options: { cutout: '80%', plugins: { legend: { display: false } } }
+          });
+      });
+      var memberChartCtx = document.getElementById('member-chart');
+      if (memberChartCtx) {
+          var mf = +memberChartCtx.dataset.for;
+          var ma = +memberChartCtx.dataset.against;
+          var mab = +memberChartCtx.dataset.abstention;
+          var mnv = +memberChartCtx.dataset.novote;
+          var memberData = [mf,ma,mab,mnv];
+          var memberLabels = ["{{ texts.for_label }}", "{{ texts.against_label }}", "{{ texts.abstention_label }}", "{{ texts.did_not_vote_label }}"];
+          new Chart(memberChartCtx, {
               type:'doughnut',
-              data:{ labels:[label], datasets:[{ data:[value, total - value], backgroundColor:[color, '#E0E0E0'] }] },
+              data:{ labels:memberLabels, datasets:[{ data:memberData, backgroundColor:['#7AB800','#D0006F','#00C1F0','#B6B6B6'] }] },
               options:{
-                  responsive:false, // Disable responsiveness to enforce consistent size
+                  responsive:true,
                   maintainAspectRatio:false,
                   cutout:'60%',
                   plugins:{ legend:{ display:false }, tooltip:{} }
@@ -435,40 +564,88 @@
                   id:'centerText',
                   afterDraw:function(chart){
                       var ctx = chart.ctx;
-                      var text = value;
+                      var d = chart.data.datasets[0].data;
+                      var lbls = chart.data.labels;
+                      var maxIdx = d.indexOf(Math.max.apply(null,d));
+                      var label = lbls[maxIdx];
+                      var value = d[maxIdx];
                       ctx.save();
-                      ctx.textAlign='center';
-                      ctx.textBaseline='middle';
-                      ctx.font='bold 1em sans-serif';
-                      ctx.fillText(text, chart.width/2, chart.height/2);
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'middle';
+                      ctx.font = 'bold 1.2em sans-serif';
+                      ctx.fillText(label, chart.width/2, chart.height/2 - 10);
+                      ctx.font = '1em sans-serif';
+                      ctx.fillText(value, chart.width/2, chart.height/2 + 10);
                       ctx.restore();
                   }
               }]
           });
-      });
+      }
     });
     flatpickr("#start_date", {
-        dateFormat: "d-m-Y",
+        dateFormat: "d.m.Y",
         allowInput: true,
-        locale: "de",
+        locale: "{{ lang }}", // Dynamically set locale based on language
         maxDate: document.getElementById('end_date').value || undefined,
-        onChange: function(selectedDates, dateStr, instance) {
-            // Set maxDate for end_date
+        onChange: function(selectedDates, dateStr) {
             endPicker.set('minDate', dateStr);
         }
     });
     var endPicker = flatpickr("#end_date", {
-        dateFormat: "d-m-Y",
+        dateFormat: "d.m.Y",
         allowInput: true,
-        locale: "de",
+        locale: "{{ lang }}", // Dynamically set locale based on language
         minDate: document.getElementById('start_date').value || undefined,
-        maxDate: "25-05-2025",
-        onChange: function(selectedDates, dateStr, instance) {
-            // Set minDate for start_date
+        maxDate: "25.05.2025",
+        onChange: function(selectedDates, dateStr) {
             startPicker.set('maxDate', dateStr);
         }
     });
     var startPicker = flatpickr.instances.find(i => i.input.id === 'start_date');
     </script>
+    <script>
+      // Select2 initialisieren
+      $(document).ready(function() {
+        $('#member_id').select2({
+          placeholder: '{{ texts.member }} auswählen...',
+          allowClear: true,
+          width: 'resolve'
+        });
+        $('#member_id').on('change', function() {
+          $(this).closest('form').submit();
+        });
+      });
+    </script>
+    <script>
+      // Keyboard-Navigation für Votes-Container
+      (function() {
+        var container = document.getElementById('votes-container');
+        document.addEventListener('keydown', function(e) {
+          if (!container) return;
+          var scrollAmount = Math.floor(container.clientWidth * 0.8);
+          if (e.key === 'ArrowRight') {
+            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+          } else if (e.key === 'ArrowLeft') {
+            container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+          }
+        });
+      })();
+    </script>
+    <script>
+        // Nur rechter Scroll-Pfeil, um 80% der Breite scrollen
+        function scrollRight() {
+            const container = document.getElementById('votes-container');
+            const amount = Math.floor(container.clientWidth * 0.8);
+            container.scrollBy({ left: amount, behavior: 'smooth' });
+        }
+    </script>
+
+    <footer style="text-align: center; margin-top: 2rem; font-size: 0.9rem;">
+      <p>
+          API from Howtheyvote.eu 
+          <a href="https://github.com/HowTheyVote/howtheyvote" target="_blank" rel="noopener noreferrer">GitHub</a>.
+          Licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer">AGPL-3.0 license</a>.
+      </p>
+    </footer>
 </body>
-</html>
+</html> 
